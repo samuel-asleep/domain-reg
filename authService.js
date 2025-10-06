@@ -36,10 +36,15 @@ class InfinityFreeAuth {
       
       console.log('CSRF token found:', csrfToken.substring(0, 20) + '...');
       
+      const captchaType = $('input[name="captcha-type"]').val() || 'turnstile';
+      console.log('Captcha type:', captchaType);
+      
       const loginData = {
         _token: csrfToken,
         email: email,
-        password: password
+        password: password,
+        'captcha-type': captchaType,
+        'cf-turnstile-response': ''
       };
       
       console.log('Attempting login...');
