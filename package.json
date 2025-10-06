@@ -15,6 +15,7 @@
     "cheerio": "^1.1.2",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "puppeteer-core": "^24.23.0",
     "tough-cookie": "^5.1.2",
     "turnstile-bypass": "^1.0.0"
   }

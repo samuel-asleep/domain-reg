@@ -2,7 +2,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { wrapper } = require('axios-cookiejar-support');
 const { CookieJar } = require('tough-cookie');
-const TurnstileBypass = require('turnstile-bypass');
+const puppeteer = require('puppeteer-core');
 
 class InfinityFreeAuth {
   constructor() {
@@ -16,58 +16,138 @@ class InfinityFreeAuth {
     }));
     this.isAuthenticated = false;
     this.baseURL = 'https://dash.infinityfree.com';
-    this.turnstileSolver = new TurnstileBypass();
+    this.browserWSEndpoint = 'wss://browser-api.koyeb.app/';
+  }
+
+  async solveTurnstileWithPuppeteer() {
+    console.log('Connecting to remote browser at:', this.browserWSEndpoint);
+    
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: this.browserWSEndpoint
+    });
+    
+    try {
+      const page = await browser.newPage();
+      
+      console.log('Navigating to login page...');
+      await page.goto(`${this.baseURL}/login`, { 
+        waitUntil: 'domcontentloaded',
+        timeout: 60000 
+      });
+      
+      console.log('Waiting for Turnstile CAPTCHA to load...');
+      await page.waitForSelector('input[name="cf-turnstile-response"]', { timeout: 15000 });
+      
+      console.log('Turnstile widget found. Triggering it by scrolling into view...');
+      await page.evaluate(() => {
+        const turnstileDiv = document.querySelector('[class*="cf-turnstile"]') || document.querySelector('div[data-sitekey]');
+        if (turnstileDiv) {
+          turnstileDiv.scrollIntoView();
+        }
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      console.log('Looking for Turnstile iframe...');
+      const frames = page.frames();
+      let turnstileFrame = null;
+      for (const frame of frames) {
+        const url = frame.url();
+        if (url.includes('challenges.cloudflare.com')) {
+          turnstileFrame = frame;
+          console.log('Found Turnstile iframe!');
+          break;
+        }
+      }
+      
+      if (turnstileFrame) {
+        console.log('Checking for checkbox in Turnstile iframe...');
+        try {
+          const checkbox = await turnstileFrame.waitForSelector('input[type="checkbox"]', { timeout: 5000 });
+          if (checkbox) {
+            console.log('Found and clicking Turnstile checkbox...');
+            await checkbox.click();
+          }
+        } catch (e) {
+          console.log('No checkbox found in iframe, Turnstile might auto-solve...');
+        }
+      }
+      
+      console.log('Waiting for Turnstile to be solved (up to 45 seconds)...');
+      
+      try {
+        await page.waitForFunction(() => {
+          const input = document.querySelector('input[name="cf-turnstile-response"]');
+          return input && input.value && input.value.length > 0;
+        }, { timeout: 45000 });
+        console.log('Turnstile solved!');
+      } catch (e) {
+        console.log('Turnstile auto-solve timeout, checking current state...');
+        const currentValue = await page.evaluate(() => {
+          const input = document.querySelector('input[name="cf-turnstile-response"]');
+          return input ? input.value : null;
+        });
+        if (!currentValue) {
+          throw new Error('Turnstile CAPTCHA was not solved within 45 seconds');
+        }
+      }
+      
+      console.log('Turnstile solved! Extracting cookies and CSRF token...');
+      
+      const cookies = await page.cookies();
+      const userAgent = await page.evaluate(() => navigator.userAgent);
+      
+      const csrfToken = await page.evaluate(() => {
+        const input = document.querySelector('input[name="_token"]');
+        return input ? input.value : null;
+      });
+      
+      const turnstileResponse = await page.evaluate(() => {
+        const input = document.querySelector('input[name="cf-turnstile-response"]');
+        return input ? input.value : null;
+      });
+      
+      await page.close();
+      
+      return {
+        cookies,
+        userAgent,
+        csrfToken,
+        turnstileResponse
+      };
+      
+    } finally {
+      await browser.disconnect();
+    }
   }
 
   async login(email, password) {
     try {
-      console.log('Solving Turnstile CAPTCHA using turnstile-bypass...');
+      console.log('Solving Turnstile CAPTCHA using remote browser...');
       
-      const bypassResult = await this.turnstileSolver.solve(`${this.baseURL}/login`);
+      const bypassResult = await this.solveTurnstileWithPuppeteer();
       
       console.log('Turnstile solved successfully!');
       console.log('User Agent:', bypassResult.userAgent);
-      console.log('Cookies received:', bypassResult.cookies ? 'Yes' : 'No');
+      console.log('Cookies received:', bypassResult.cookies.length);
+      console.log('CSRF token:', bypassResult.csrfToken ? 'Found' : 'Not found');
+      console.log('Turnstile response:', bypassResult.turnstileResponse ? bypassResult.turnstileResponse.substring(0, 30) + '...' : 'Not found');
       
       if (bypassResult.userAgent) {
         this.client.defaults.headers['User-Agent'] = bypassResult.userAgent;
       }
       
-      if (bypassResult.cookies) {
-        for (const cookie of bypassResult.cookies) {
-          await this.jar.setCookie(cookie, this.baseURL);
-        }
+      for (const cookie of bypassResult.cookies) {
+        const cookieString = `${cookie.name}=${cookie.value}; Domain=${cookie.domain}; Path=${cookie.path}`;
+        await this.jar.setCookie(cookieString, this.baseURL);
       }
-      
-      console.log('Fetching login page with bypass cookies...');
-      
-      const loginPageResponse = await this.client.get(`${this.baseURL}/login`);
-      const $ = cheerio.load(loginPageResponse.data);
-      
-      console.log('Parsing login page for CSRF token and form fields...');
-      
-      const csrfToken = $('input[name="_token"]').val() || 
-                        $('meta[name="csrf-token"]').attr('content');
-      
-      if (!csrfToken) {
-        console.log('Login page HTML (first 500 chars):', loginPageResponse.data.substring(0, 500));
-        throw new Error('CSRF token not found on login page');
-      }
-      
-      console.log('CSRF token found:', csrfToken.substring(0, 20) + '...');
-      
-      const captchaType = $('input[name="captcha-type"]').val() || 'turnstile';
-      const turnstileResponse = $('input[name="cf-turnstile-response"]').val() || '';
-      
-      console.log('Captcha type:', captchaType);
-      console.log('Turnstile response from page:', turnstileResponse ? 'Found' : 'Not found');
       
       const loginData = {
-        _token: csrfToken,
+        _token: bypassResult.csrfToken,
         email: email,
         password: password,
-        'captcha-type': captchaType,
-        'cf-turnstile-response': turnstileResponse
+        'captcha-type': 'turnstile',
+        'cf-turnstile-response': bypassResult.turnstileResponse
       };
       
       console.log('Attempting login with credentials...');
@@ -87,7 +167,6 @@ class InfinityFreeAuth {
       );
       
       console.log('Login response status:', loginResponse.status);
-      console.log('Login response headers:', loginResponse.headers);
       
       if (loginResponse.status === 302 || loginResponse.status === 301) {
         const redirectLocation = loginResponse.headers.location;
@@ -96,7 +175,7 @@ class InfinityFreeAuth {
         if (redirectLocation && !redirectLocation.includes('/login')) {
           this.isAuthenticated = true;
           console.log('Login successful!');
-          return { success: true, message: 'Login successful' };
+          return { success: true, message: 'Login successful', redirectTo: redirectLocation };
         }
       }
       
