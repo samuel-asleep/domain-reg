@@ -2,6 +2,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { wrapper } = require('axios-cookiejar-support');
 const { CookieJar } = require('tough-cookie');
+const TurnstileBypass = require('turnstile-bypass');
 
 class InfinityFreeAuth {
   constructor() {
@@ -15,11 +16,30 @@ class InfinityFreeAuth {
     }));
     this.isAuthenticated = false;
     this.baseURL = 'https://dash.infinityfree.com';
+    this.turnstileSolver = new TurnstileBypass();
   }
 
   async login(email, password) {
     try {
-      console.log('Fetching login page...');
+      console.log('Solving Turnstile CAPTCHA using turnstile-bypass...');
+      
+      const bypassResult = await this.turnstileSolver.solve(`${this.baseURL}/login`);
+      
+      console.log('Turnstile solved successfully!');
+      console.log('User Agent:', bypassResult.userAgent);
+      console.log('Cookies received:', bypassResult.cookies ? 'Yes' : 'No');
+      
+      if (bypassResult.userAgent) {
+        this.client.defaults.headers['User-Agent'] = bypassResult.userAgent;
+      }
+      
+      if (bypassResult.cookies) {
+        for (const cookie of bypassResult.cookies) {
+          await this.jar.setCookie(cookie, this.baseURL);
+        }
+      }
+      
+      console.log('Fetching login page with bypass cookies...');
       
       const loginPageResponse = await this.client.get(`${this.baseURL}/login`);
       const $ = cheerio.load(loginPageResponse.data);
@@ -37,17 +57,20 @@ class InfinityFreeAuth {
       console.log('CSRF token found:', csrfToken.substring(0, 20) + '...');
       
       const captchaType = $('input[name="captcha-type"]').val() || 'turnstile';
+      const turnstileResponse = $('input[name="cf-turnstile-response"]').val() || '';
+      
       console.log('Captcha type:', captchaType);
+      console.log('Turnstile response from page:', turnstileResponse ? 'Found' : 'Not found');
       
       const loginData = {
         _token: csrfToken,
         email: email,
         password: password,
         'captcha-type': captchaType,
-        'cf-turnstile-response': ''
+        'cf-turnstile-response': turnstileResponse
       };
       
-      console.log('Attempting login...');
+      console.log('Attempting login with credentials...');
       
       const loginResponse = await this.client.post(
         `${this.baseURL}/login`,
