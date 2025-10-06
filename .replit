@@ -3,3 +3,6 @@ modules = ["nodejs-20"]
 expertMode = true
 
 [workflows]
+
+[nix]
+channel = "stable-25_05"
