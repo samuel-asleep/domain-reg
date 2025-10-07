@@ -16,14 +16,20 @@ class InfinityFreeAuth {
     }));
     this.isAuthenticated = false;
     this.baseURL = 'https://dash.infinityfree.com';
-    this.browserWSEndpoint = 'wss://browser-api.koyeb.app/';
   }
 
   async solveTurnstileWithPuppeteer() {
-    console.log('Connecting to remote browser at:', this.browserWSEndpoint);
+    console.log('Launching local Chromium browser...');
     
-    const browser = await puppeteer.connect({
-      browserWSEndpoint: this.browserWSEndpoint
+    const browser = await puppeteer.launch({
+      executablePath: '/nix/store/qa9cnw4v5xkxyip6mb9kxqfq1z4x2dx1-chromium-138.0.7204.100/bin/chromium',
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-blink-features=AutomationControlled'
+      ]
     });
     
     try {
@@ -117,13 +123,13 @@ class InfinityFreeAuth {
       };
       
     } finally {
-      await browser.disconnect();
+      await browser.close();
     }
   }
 
   async login(email, password) {
     try {
-      console.log('Solving Turnstile CAPTCHA using remote browser...');
+      console.log('Solving Turnstile CAPTCHA using local Chromium...');
       
       const bypassResult = await this.solveTurnstileWithPuppeteer();
       

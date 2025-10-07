@@ -1,10 +1,17 @@
 const puppeteer = require('puppeteer-core');
 
 async function testBrowserless() {
-  console.log('Connecting to browserless...');
+  console.log('Launching local Chromium browser...');
   
-  const browser = await puppeteer.connect({
-    browserWSEndpoint: 'wss://browser-api.koyeb.app/'
+  const browser = await puppeteer.launch({
+    executablePath: '/nix/store/qa9cnw4v5xkxyip6mb9kxqfq1z4x2dx1-chromium-138.0.7204.100/bin/chromium',
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-blink-features=AutomationControlled'
+    ]
   });
   
   try {
@@ -38,7 +45,7 @@ async function testBrowserless() {
     }
     
     console.log('\nWaiting 10 seconds for Turnstile to auto-solve...');
-    await page.waitForTimeout(10000);
+    await new Promise(resolve => setTimeout(resolve, 10000));
     
     const turnstileInputAfter = await page.$('input[name="cf-turnstile-response"]');
     if (turnstileInputAfter) {
@@ -52,7 +59,7 @@ async function testBrowserless() {
   } catch (error) {
     console.error('Error:', error.message);
   } finally {
-    await browser.disconnect();
+    await browser.close();
   }
 }
 
