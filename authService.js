@@ -388,6 +388,148 @@ class InfinityFreeAuth {
       throw error;
     }
   }
+
+  async registerDomain(accountId, domain) {
+    await this.ensureAuthenticated();
+    
+    try {
+      const createUrl = `${this.baseURL}/accounts/${accountId}/domains/create`;
+      const createResponse = await this.client.get(createUrl);
+      const $ = cheerio.load(createResponse.data);
+      
+      const csrfToken = $('input[name="_token"]').first().attr('value');
+      
+      if (!csrfToken) {
+        throw new Error('Could not find CSRF token');
+      }
+      
+      const postUrl = `${this.baseURL}/accounts/${accountId}/domains`;
+      const formData = {
+        domain: domain,
+        _token: csrfToken
+      };
+      
+      console.log(`Registering domain: ${domain}`);
+      
+      const response = await this.client.post(postUrl, new URLSearchParams(formData).toString(), {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': createUrl,
+          'Origin': this.baseURL
+        },
+        maxRedirects: 0,
+        validateStatus: (status) => status >= 200 && status < 400
+      });
+      
+      if (response.status === 302 || response.status === 303) {
+        const redirectLocation = response.headers.location;
+        if (redirectLocation && (redirectLocation.includes('/domains/') || redirectLocation.includes('/accounts/'))) {
+          console.log('✓ Domain registered successfully');
+          return { success: true, message: `Domain ${domain} registered successfully` };
+        }
+      }
+      
+      if (response.status === 200) {
+        const $response = cheerio.load(response.data);
+        const successMessage = $response('.alert-success').text().trim();
+        const errorMessage = $response('.alert-danger').text().trim() ||
+                            $response('.error').text().trim();
+        
+        if (errorMessage) {
+          throw new Error(`Failed to register domain: ${errorMessage}`);
+        }
+        
+        if (successMessage || response.data.includes('success')) {
+          console.log('✓ Domain registered successfully');
+          return { success: true, message: successMessage || `Domain ${domain} registered successfully` };
+        }
+      }
+      
+      throw new Error('Domain registration failed - unexpected response');
+      
+    } catch (error) {
+      console.error('Error registering domain:', error.message);
+      if (error.response && error.response.data) {
+        const $ = cheerio.load(error.response.data);
+        const errorMessage = $('.alert-danger').text().trim();
+        if (errorMessage) {
+          throw new Error(`Failed to register domain: ${errorMessage}`);
+        }
+      }
+      throw error;
+    }
+  }
+
+  async registerSubdomain(accountId, parentDomain, subdomain) {
+    await this.ensureAuthenticated();
+    
+    try {
+      const createUrl = `${this.baseURL}/accounts/${accountId}/domains/${parentDomain}/subdomains/create`;
+      const createResponse = await this.client.get(createUrl);
+      const $ = cheerio.load(createResponse.data);
+      
+      const csrfToken = $('input[name="_token"]').first().attr('value');
+      
+      if (!csrfToken) {
+        throw new Error('Could not find CSRF token');
+      }
+      
+      const postUrl = `${this.baseURL}/accounts/${accountId}/domains/${parentDomain}/subdomains`;
+      const formData = {
+        subdomain: subdomain,
+        _token: csrfToken
+      };
+      
+      console.log(`Registering subdomain: ${subdomain}.${parentDomain}`);
+      
+      const response = await this.client.post(postUrl, new URLSearchParams(formData).toString(), {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': createUrl,
+          'Origin': this.baseURL
+        },
+        maxRedirects: 0,
+        validateStatus: (status) => status >= 200 && status < 400
+      });
+      
+      if (response.status === 302 || response.status === 303) {
+        const redirectLocation = response.headers.location;
+        if (redirectLocation && (redirectLocation.includes('/domains/') || redirectLocation.includes('/subdomains'))) {
+          console.log('✓ Subdomain registered successfully');
+          return { success: true, message: `Subdomain ${subdomain}.${parentDomain} registered successfully` };
+        }
+      }
+      
+      if (response.status === 200) {
+        const $response = cheerio.load(response.data);
+        const successMessage = $response('.alert-success').text().trim();
+        const errorMessage = $response('.alert-danger').text().trim() ||
+                            $response('.error').text().trim();
+        
+        if (errorMessage) {
+          throw new Error(`Failed to register subdomain: ${errorMessage}`);
+        }
+        
+        if (successMessage || response.data.includes('success')) {
+          console.log('✓ Subdomain registered successfully');
+          return { success: true, message: successMessage || `Subdomain ${subdomain}.${parentDomain} registered successfully` };
+        }
+      }
+      
+      throw new Error('Subdomain registration failed - unexpected response');
+      
+    } catch (error) {
+      console.error('Error registering subdomain:', error.message);
+      if (error.response && error.response.data) {
+        const $ = cheerio.load(error.response.data);
+        const errorMessage = $('.alert-danger').text().trim();
+        if (errorMessage) {
+          throw new Error(`Failed to register subdomain: ${errorMessage}`);
+        }
+      }
+      throw error;
+    }
+  }
 }
 
 module.exports = InfinityFreeAuth;
