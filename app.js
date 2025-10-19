@@ -183,7 +183,7 @@ app.post('/verify-auth', async (req, res) => {
   }
 });
 
-app.get('/test-account-page', async (req, res) => {
+app.get('/test-domain-create-form', async (req, res) => {
   try {
     const accounts = await authService.getAccounts();
     if (accounts.length === 0) {
@@ -191,38 +191,56 @@ app.get('/test-account-page', async (req, res) => {
     }
     
     const accountId = accounts[0].id;
-    const accountUrl = `${authService.baseURL}/accounts/${accountId}`;
-    const response = await authService.client.get(accountUrl);
+    const createUrl = `${authService.baseURL}/accounts/${accountId}/domains/create`;
+    const response = await authService.client.get(createUrl);
     
     const cheerio = require('cheerio');
     const $ = cheerio.load(response.data);
     
-    let output = '<html><head><title>Account Page Analysis</title><style>body{font-family:monospace;padding:20px;}pre{background:#f4f4f4;padding:10px;border:1px solid #ddd;max-height:400px;overflow:auto;}</style></head><body>';
-    output += `<h1>Account Page for ${accountId}</h1>`;
-    output += `<p>URL: ${accountUrl}</p>`;
+    let output = '<html><head><title>Domain Create Form</title><style>body{font-family:monospace;padding:20px;}pre{background:#f4f4f4;padding:10px;border:1px solid #ddd;max-height:400px;overflow:auto;}</style></head><body>';
+    output += `<h1>Domain Creation Form</h1>`;
+    output += `<p>URL: ${createUrl}</p>`;
+    output += `<p>Page Title: ${$('title').text()}</p>`;
     
-    output += '<h2>All Links with "domain" or "subdomain":</h2><pre>';
-    $('a').each((i, elem) => {
-      const href = $(elem).attr('href');
-      const text = $(elem).text().trim();
-      if (href && (href.toLowerCase().includes('domain') || text.toLowerCase().includes('domain'))) {
-        output += `Text: "${text}"\nHref: ${href}\n\n`;
-      }
+    output += '<h2>Form Details:</h2><pre>';
+    $('form').each((i, form) => {
+      const action = $(form).attr('action');
+      const method = $(form).attr('method');
+      output += `Form Action: ${action || 'none'}\n`;
+      output += `Form Method: ${method || 'POST'}\n\n`;
+      
+      output += 'Form Inputs:\n';
+      $(form).find('input, select, textarea').each((j, elem) => {
+        const tagName = elem.tagName.toLowerCase();
+        const name = $(elem).attr('name');
+        const type = $(elem).attr('type');
+        const id = $(elem).attr('id');
+        const value = $(elem).attr('value');
+        const placeholder = $(elem).attr('placeholder');
+        
+        output += `  ${tagName.toUpperCase()}:`;
+        if (name) output += ` name="${name}"`;
+        if (type) output += ` type="${type}"`;
+        if (id) output += ` id="${id}"`;
+        if (placeholder) output += ` placeholder="${placeholder}"`;
+        if (value) output += ` value="${value}"`;
+        
+        if (tagName === 'select') {
+          output += '\n    Options:\n';
+          $(elem).find('option').each((k, option) => {
+            const optValue = $(option).attr('value');
+            const optText = $(option).text().trim();
+            output += `      - value="${optValue}" text="${optText}"\n`;
+          });
+        } else {
+          output += '\n';
+        }
+      });
     });
     output += '</pre>';
     
-    output += '<h2>All Buttons:</h2><pre>';
-    $('button, a.btn, a[class*="button"]').each((i, elem) => {
-      const text = $(elem).text().trim();
-      const href = $(elem).attr('href');
-      const onclick = $(elem).attr('onclick');
-      if (text) {
-        output += `Text: "${text}"`;
-        if (href) output += `, Href: ${href}`;
-        if (onclick) output += `, OnClick: ${onclick}`;
-        output += '\n';
-      }
-    });
+    output += '<h2>All Text Content:</h2><pre>';
+    output += $('body').text().substring(0, 1000);
     output += '</pre>';
     
     output += '</body></html>';
