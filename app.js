@@ -68,6 +68,12 @@ app.get('/', (req, res) => {
           color: #721c24;
           border: 1px solid #f5c6cb;
         }
+        input {
+          width: 100%;
+          padding: 8px;
+          margin: 10px 0;
+          box-sizing: border-box;
+        }
       </style>
     </head>
     <body>
@@ -75,10 +81,10 @@ app.get('/', (req, res) => {
         <h1>InfinityFree Automation</h1>
         
         <div class="test-section">
-          <h2>Test Login</h2>
-          <p>Click the button below to test the login functionality:</p>
-          <form action="/test-login" method="POST">
-            <button type="submit">Test Login</button>
+          <h2>Verify Authentication</h2>
+          <p>Click the button below to verify that your cookies are working:</p>
+          <form action="/verify-auth" method="POST">
+            <button type="submit">Verify Authentication</button>
           </form>
         </div>
 
@@ -86,7 +92,7 @@ app.get('/', (req, res) => {
           <h2>Register Domain</h2>
           <form action="/register-domain" method="POST">
             <label for="domain">Domain Name:</label><br>
-            <input type="text" id="domain" name="domain" placeholder="example.com" required style="width: 100%; padding: 8px; margin: 10px 0;"><br>
+            <input type="text" id="domain" name="domain" placeholder="example.com" required><br>
             <button type="submit">Register Domain</button>
           </form>
         </div>
@@ -95,13 +101,13 @@ app.get('/', (req, res) => {
           <h2>Create CNAME Record</h2>
           <form action="/create-cname" method="POST">
             <label for="cname_domain">Domain:</label><br>
-            <input type="text" id="cname_domain" name="domain" placeholder="example.com" required style="width: 100%; padding: 8px; margin: 10px 0;"><br>
+            <input type="text" id="cname_domain" name="domain" placeholder="example.com" required><br>
             
             <label for="host">Host/Name:</label><br>
-            <input type="text" id="host" name="host" placeholder="www" required style="width: 100%; padding: 8px; margin: 10px 0;"><br>
+            <input type="text" id="host" name="host" placeholder="www" required><br>
             
             <label for="target">Target/Value:</label><br>
-            <input type="text" id="target" name="target" placeholder="target.example.com" required style="width: 100%; padding: 8px; margin: 10px 0;"><br>
+            <input type="text" id="target" name="target" placeholder="target.example.com" required><br>
             
             <button type="submit">Create CNAME</button>
           </form>
@@ -112,19 +118,17 @@ app.get('/', (req, res) => {
   `);
 });
 
-app.post('/test-login', async (req, res) => {
+app.post('/verify-auth', async (req, res) => {
   try {
-    console.log('Testing login...');
-    const result = await authService.login(
-      process.env.INFINITYFREE_EMAIL,
-      process.env.INFINITYFREE_PASSWORD
-    );
+    console.log('Verifying authentication...');
+    await authService.initializeFromEnv();
+    const result = await authService.verifyAuthentication();
     
     res.send(`
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Login Test Result</title>
+        <title>Authentication Verification Result</title>
         <style>
           body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
           .success { background-color: #d4edda; color: #155724; padding: 20px; border-radius: 4px; border: 1px solid #c3e6cb; }
@@ -134,8 +138,9 @@ app.post('/test-login', async (req, res) => {
       </head>
       <body>
         <div class="success">
-          <h2>✓ Login Successful!</h2>
+          <h2>✓ Authentication Successful!</h2>
           <p>${result.message}</p>
+          <p>Your cookies are valid and working correctly.</p>
           <p><a href="/">← Back to Home</a></p>
         </div>
       </body>
@@ -146,7 +151,7 @@ app.post('/test-login', async (req, res) => {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Login Test Result</title>
+        <title>Authentication Verification Result</title>
         <style>
           body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
           .error { background-color: #f8d7da; color: #721c24; padding: 20px; border-radius: 4px; border: 1px solid #f5c6cb; }
@@ -156,8 +161,9 @@ app.post('/test-login', async (req, res) => {
       </head>
       <body>
         <div class="error">
-          <h2>✗ Login Failed</h2>
+          <h2>✗ Authentication Failed</h2>
           <p>${error.message}</p>
+          <p>Please check your INFINITYFREE_COOKIES environment variable.</p>
           <p><a href="/">← Back to Home</a></p>
         </div>
       </body>
@@ -220,4 +226,5 @@ app.post('/create-cname', async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
   console.log('InfinityFree Automation App Ready');
+  console.log('Using cookie-based authentication');
 });

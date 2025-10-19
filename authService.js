@@ -2,7 +2,6 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { wrapper } = require('axios-cookiejar-support');
 const { CookieJar } = require('tough-cookie');
-const puppeteer = require('puppeteer-core');
 
 class InfinityFreeAuth {
   constructor() {
@@ -18,200 +17,90 @@ class InfinityFreeAuth {
     this.baseURL = 'https://dash.infinityfree.com';
   }
 
-  async solveTurnstileWithPuppeteer() {
-    console.log('Launching local Chromium browser...');
+  parseCookieString(cookieString) {
+    const cookies = [];
+    const cookiePairs = cookieString.split(';');
     
-    const browser = await puppeteer.launch({
-      executablePath: '/nix/store/qa9cnw4v5xkxyip6mb9kxqfq1z4x2dx1-chromium-138.0.7204.100/bin/chromium',
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-blink-features=AutomationControlled'
-      ]
-    });
+    for (const pair of cookiePairs) {
+      const trimmed = pair.trim();
+      if (!trimmed) continue;
+      
+      const equalIndex = trimmed.indexOf('=');
+      if (equalIndex === -1) continue;
+      
+      const name = trimmed.substring(0, equalIndex);
+      const value = trimmed.substring(equalIndex + 1);
+      
+      cookies.push({ name, value });
+    }
     
+    return cookies;
+  }
+
+  async setCookiesFromString(cookieString) {
     try {
-      const page = await browser.newPage();
+      console.log('Setting cookies from provided cookie string...');
       
-      console.log('Navigating to login page...');
-      await page.goto(`${this.baseURL}/login`, { 
-        waitUntil: 'domcontentloaded',
-        timeout: 60000 
-      });
+      const cookies = this.parseCookieString(cookieString);
       
-      console.log('Waiting for Turnstile CAPTCHA to load...');
-      await page.waitForSelector('input[name="cf-turnstile-response"]', { timeout: 15000 });
-      
-      console.log('Turnstile widget found. Triggering it by scrolling into view...');
-      await page.evaluate(() => {
-        const turnstileDiv = document.querySelector('[class*="cf-turnstile"]') || document.querySelector('div[data-sitekey]');
-        if (turnstileDiv) {
-          turnstileDiv.scrollIntoView();
-        }
-      });
-      
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      console.log('Looking for Turnstile iframe...');
-      const frames = page.frames();
-      let turnstileFrame = null;
-      for (const frame of frames) {
-        const url = frame.url();
-        if (url.includes('challenges.cloudflare.com')) {
-          turnstileFrame = frame;
-          console.log('Found Turnstile iframe!');
-          break;
-        }
+      for (const cookie of cookies) {
+        const cookieStr = `${cookie.name}=${cookie.value}; Domain=.infinityfree.com; Path=/`;
+        await this.jar.setCookie(cookieStr, this.baseURL);
       }
       
-      if (turnstileFrame) {
-        console.log('Checking for checkbox in Turnstile iframe...');
-        try {
-          const checkbox = await turnstileFrame.waitForSelector('input[type="checkbox"]', { timeout: 5000 });
-          if (checkbox) {
-            console.log('Found and clicking Turnstile checkbox...');
-            await checkbox.click();
-          }
-        } catch (e) {
-          console.log('No checkbox found in iframe, Turnstile might auto-solve...');
-        }
-      }
+      console.log(`Successfully set ${cookies.length} cookies`);
+      this.isAuthenticated = true;
       
-      console.log('Waiting for Turnstile to be solved (up to 45 seconds)...');
-      
-      try {
-        await page.waitForFunction(() => {
-          const input = document.querySelector('input[name="cf-turnstile-response"]');
-          return input && input.value && input.value.length > 0;
-        }, { timeout: 45000 });
-        console.log('Turnstile solved!');
-      } catch (e) {
-        console.log('Turnstile auto-solve timeout, checking current state...');
-        const currentValue = await page.evaluate(() => {
-          const input = document.querySelector('input[name="cf-turnstile-response"]');
-          return input ? input.value : null;
-        });
-        if (!currentValue) {
-          throw new Error('Turnstile CAPTCHA was not solved within 45 seconds');
-        }
-      }
-      
-      console.log('Turnstile solved! Extracting cookies and CSRF token...');
-      
-      const cookies = await page.cookies();
-      const userAgent = await page.evaluate(() => navigator.userAgent);
-      
-      const csrfToken = await page.evaluate(() => {
-        const input = document.querySelector('input[name="_token"]');
-        return input ? input.value : null;
-      });
-      
-      const turnstileResponse = await page.evaluate(() => {
-        const input = document.querySelector('input[name="cf-turnstile-response"]');
-        return input ? input.value : null;
-      });
-      
-      await page.close();
-      
-      return {
-        cookies,
-        userAgent,
-        csrfToken,
-        turnstileResponse
-      };
-      
-    } finally {
-      await browser.close();
+      return { success: true, message: `Loaded ${cookies.length} cookies` };
+    } catch (error) {
+      console.error('Error setting cookies:', error.message);
+      throw error;
     }
   }
 
-  async login(email, password) {
+  async initializeFromEnv() {
+    const cookieString = process.env.INFINITYFREE_COOKIES;
+    
+    if (!cookieString) {
+      throw new Error('INFINITYFREE_COOKIES environment variable is required');
+    }
+    
+    return await this.setCookiesFromString(cookieString);
+  }
+
+  async verifyAuthentication() {
     try {
-      console.log('Solving Turnstile CAPTCHA using local Chromium...');
+      console.log('Verifying authentication status...');
       
-      const bypassResult = await this.solveTurnstileWithPuppeteer();
+      const response = await this.client.get(`${this.baseURL}/accounts`, {
+        maxRedirects: 0,
+        validateStatus: (status) => status >= 200 && status < 400
+      });
       
-      console.log('Turnstile solved successfully!');
-      console.log('User Agent:', bypassResult.userAgent);
-      console.log('Cookies received:', bypassResult.cookies.length);
-      console.log('CSRF token:', bypassResult.csrfToken ? 'Found' : 'Not found');
-      console.log('Turnstile response:', bypassResult.turnstileResponse ? bypassResult.turnstileResponse.substring(0, 30) + '...' : 'Not found');
-      
-      if (bypassResult.userAgent) {
-        this.client.defaults.headers['User-Agent'] = bypassResult.userAgent;
+      if (response.status === 302 && response.headers.location?.includes('/login')) {
+        this.isAuthenticated = false;
+        throw new Error('Cookies expired or invalid - redirected to login');
       }
       
-      for (const cookie of bypassResult.cookies) {
-        const cookieString = `${cookie.name}=${cookie.value}; Domain=${cookie.domain}; Path=${cookie.path}`;
-        await this.jar.setCookie(cookieString, this.baseURL);
-      }
-      
-      const loginData = {
-        _token: bypassResult.csrfToken,
-        email: email,
-        password: password,
-        'captcha-type': 'turnstile',
-        'cf-turnstile-response': bypassResult.turnstileResponse
-      };
-      
-      console.log('Attempting login with credentials...');
-      
-      const loginResponse = await this.client.post(
-        `${this.baseURL}/login`,
-        new URLSearchParams(loginData).toString(),
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Referer': `${this.baseURL}/login`,
-            'Origin': this.baseURL
-          },
-          maxRedirects: 0,
-          validateStatus: (status) => status >= 200 && status < 400
-        }
-      );
-      
-      console.log('Login response status:', loginResponse.status);
-      
-      if (loginResponse.status === 302 || loginResponse.status === 301) {
-        const redirectLocation = loginResponse.headers.location;
-        console.log('Redirect to:', redirectLocation);
+      if (response.status === 200) {
+        const $ = cheerio.load(response.data);
+        const hasAccountData = $('[class*="account"]').length > 0 || 
+                              response.data.includes('dashboard');
         
-        if (redirectLocation && !redirectLocation.includes('/login')) {
+        if (hasAccountData) {
           this.isAuthenticated = true;
-          console.log('Login successful!');
-          return { success: true, message: 'Login successful', redirectTo: redirectLocation };
+          console.log('Authentication verified successfully');
+          return { success: true, message: 'Authenticated' };
         }
       }
       
-      if (loginResponse.status === 200) {
-        const $response = cheerio.load(loginResponse.data);
-        const errorMessage = $response('.alert-danger').text().trim() ||
-                           $response('.error').text().trim();
-        
-        if (errorMessage) {
-          throw new Error(`Login failed: ${errorMessage}`);
-        }
-        
-        if (loginResponse.data.includes('dashboard') || loginResponse.data.includes('account')) {
-          this.isAuthenticated = true;
-          console.log('Login successful (no redirect)!');
-          return { success: true, message: 'Login successful' };
-        }
-      }
-      
-      throw new Error('Login failed - unexpected response');
+      this.isAuthenticated = false;
+      throw new Error('Could not verify authentication');
       
     } catch (error) {
-      console.error('Login error:', error.message);
-      if (error.response) {
-        console.error('Response status:', error.response.status);
-        console.error('Response data (first 500 chars):', 
-          typeof error.response.data === 'string' 
-            ? error.response.data.substring(0, 500) 
-            : JSON.stringify(error.response.data).substring(0, 500)
-        );
+      if (error.response?.status === 302 && error.response.headers.location?.includes('/login')) {
+        this.isAuthenticated = false;
+        throw new Error('Cookies expired or invalid - redirected to login');
       }
       throw error;
     }
@@ -219,14 +108,8 @@ class InfinityFreeAuth {
 
   async ensureAuthenticated() {
     if (!this.isAuthenticated) {
-      const email = process.env.INFINITYFREE_EMAIL;
-      const password = process.env.INFINITYFREE_PASSWORD;
-      
-      if (!email || !password) {
-        throw new Error('INFINITYFREE_EMAIL and INFINITYFREE_PASSWORD environment variables are required');
-      }
-      
-      await this.login(email, password);
+      await this.initializeFromEnv();
+      await this.verifyAuthentication();
     }
     return this.isAuthenticated;
   }
