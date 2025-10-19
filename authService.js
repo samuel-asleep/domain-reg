@@ -389,145 +389,209 @@ class InfinityFreeAuth {
     }
   }
 
-  async registerDomain(accountId, domain) {
+  async registerDomain(accountId, subdomain, domainExtension) {
     await this.ensureAuthenticated();
     
+    const puppeteer = require('puppeteer-core');
+    let browser;
+    
     try {
-      const createUrl = `${this.baseURL}/accounts/${accountId}/domains/create`;
-      const createResponse = await this.client.get(createUrl);
-      const $ = cheerio.load(createResponse.data);
+      console.log(`Registering free subdomain: ${subdomain}.${domainExtension}`);
       
-      const csrfToken = $('input[name="_token"]').first().attr('value');
-      
-      if (!csrfToken) {
-        throw new Error('Could not find CSRF token');
-      }
-      
-      const postUrl = `${this.baseURL}/accounts/${accountId}/domains`;
-      const formData = {
-        domain: domain,
-        _token: csrfToken
-      };
-      
-      console.log(`Registering domain: ${domain}`);
-      
-      const response = await this.client.post(postUrl, new URLSearchParams(formData).toString(), {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': createUrl,
-          'Origin': this.baseURL
-        },
-        maxRedirects: 0,
-        validateStatus: (status) => status >= 200 && status < 400
+      browser = await puppeteer.launch({
+        executablePath: '/nix/store/qa9cnw4v5xkxyip6mb9kxqfq1z4x2dx1-chromium-138.0.7204.100/bin/chromium',
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
       });
       
-      if (response.status === 302 || response.status === 303) {
-        const redirectLocation = response.headers.location;
-        if (redirectLocation && (redirectLocation.includes('/domains/') || redirectLocation.includes('/accounts/'))) {
-          console.log('✓ Domain registered successfully');
-          return { success: true, message: `Domain ${domain} registered successfully` };
-        }
+      const page = await browser.newPage();
+      
+      const cookies = await this.jar.getCookies(this.baseURL);
+      const puppeteerCookies = cookies.map(cookie => ({
+        name: cookie.key,
+        value: cookie.value,
+        domain: cookie.domain,
+        path: cookie.path,
+        expires: cookie.expires === 'Infinity' ? -1 : Math.floor(new Date(cookie.expires).getTime() / 1000),
+        httpOnly: cookie.httpOnly,
+        secure: cookie.secure
+      }));
+      
+      await page.setCookie(...puppeteerCookies);
+      
+      const createUrl = `${this.baseURL}/accounts/${accountId}/domains/create`;
+      console.log(`Navigating to: ${createUrl}`);
+      await page.goto(createUrl, { waitUntil: 'networkidle0' });
+      
+      console.log('Clicking subdomain button...');
+      await page.waitForSelector('button[wire\\:click="selectDomainType(\'subdomain\')"]', { timeout: 10000 });
+      await page.click('button[wire\\:click="selectDomainType(\'subdomain\')"]');
+      
+      console.log('Waiting for form to load...');
+      await page.waitForSelector('input[placeholder="your-name"]', { timeout: 10000 });
+      
+      console.log('Filling in subdomain name...');
+      await page.type('input[placeholder="your-name"]', subdomain);
+      
+      console.log(`Selecting domain extension: ${domainExtension}`);
+      await page.select('select', domainExtension);
+      
+      console.log('Submitting form...');
+      const submitButton = await page.waitForXPath('//button[contains(text(), "Create Domain")]', { timeout: 10000 });
+      
+      let livewireResponse;
+      await Promise.all([
+        submitButton.click(),
+        page.waitForResponse(response => {
+          if (response.url().includes('/livewire/message/')) {
+            livewireResponse = response;
+            return true;
+          }
+          return response.url().includes('/domains');
+        }, { timeout: 30000 })
+      ]);
+      
+      await page.waitForTimeout(3000);
+      
+      const currentUrl = page.url();
+      console.log('Current URL after submission:', currentUrl);
+      
+      const pageContent = await page.content();
+      const $ = cheerio.load(pageContent);
+      
+      const errorMessage = $('.alert-danger').text().trim() || $('.error').text().trim();
+      
+      if (errorMessage) {
+        throw new Error(`Failed to register domain: ${errorMessage}`);
       }
       
-      if (response.status === 200) {
-        const $response = cheerio.load(response.data);
-        const successMessage = $response('.alert-success').text().trim();
-        const errorMessage = $response('.alert-danger').text().trim() ||
-                            $response('.error').text().trim();
-        
-        if (errorMessage) {
-          throw new Error(`Failed to register domain: ${errorMessage}`);
-        }
-        
-        if (successMessage || response.data.includes('success')) {
-          console.log('✓ Domain registered successfully');
-          return { success: true, message: successMessage || `Domain ${domain} registered successfully` };
-        }
+      if (currentUrl.includes('/domains/') && !currentUrl.includes('/create')) {
+        console.log('✓ Free subdomain registered successfully (redirected to domain page)');
+        return { success: true, message: `Subdomain ${subdomain}.${domainExtension} registered successfully` };
+      }
+      
+      const successMessage = $('.alert-success').text().trim();
+      if (successMessage) {
+        console.log('✓ Free subdomain registered successfully (success message found)');
+        return { success: true, message: successMessage };
+      }
+      
+      if (livewireResponse && (livewireResponse.status() === 200 || livewireResponse.status() === 204)) {
+        console.log('✓ Free subdomain registered successfully (Livewire returned success)');
+        return { success: true, message: `Subdomain ${subdomain}.${domainExtension} registered successfully` };
       }
       
       throw new Error('Domain registration failed - unexpected response');
       
     } catch (error) {
       console.error('Error registering domain:', error.message);
-      if (error.response && error.response.data) {
-        const $ = cheerio.load(error.response.data);
-        const errorMessage = $('.alert-danger').text().trim();
-        if (errorMessage) {
-          throw new Error(`Failed to register domain: ${errorMessage}`);
-        }
-      }
       throw error;
+    } finally {
+      if (browser) {
+        await browser.close();
+      }
     }
   }
 
   async registerSubdomain(accountId, parentDomain, subdomain) {
     await this.ensureAuthenticated();
     
+    const puppeteer = require('puppeteer-core');
+    let browser;
+    
     try {
-      const createUrl = `${this.baseURL}/accounts/${accountId}/domains/${parentDomain}/subdomains/create`;
-      const createResponse = await this.client.get(createUrl);
-      const $ = cheerio.load(createResponse.data);
-      
-      const csrfToken = $('input[name="_token"]').first().attr('value');
-      
-      if (!csrfToken) {
-        throw new Error('Could not find CSRF token');
-      }
-      
-      const postUrl = `${this.baseURL}/accounts/${accountId}/domains/${parentDomain}/subdomains`;
-      const formData = {
-        subdomain: subdomain,
-        _token: csrfToken
-      };
-      
       console.log(`Registering subdomain: ${subdomain}.${parentDomain}`);
       
-      const response = await this.client.post(postUrl, new URLSearchParams(formData).toString(), {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': createUrl,
-          'Origin': this.baseURL
-        },
-        maxRedirects: 0,
-        validateStatus: (status) => status >= 200 && status < 400
+      browser = await puppeteer.launch({
+        executablePath: '/nix/store/qa9cnw4v5xkxyip6mb9kxqfq1z4x2dx1-chromium-138.0.7204.100/bin/chromium',
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
       });
       
-      if (response.status === 302 || response.status === 303) {
-        const redirectLocation = response.headers.location;
-        if (redirectLocation && (redirectLocation.includes('/domains/') || redirectLocation.includes('/subdomains'))) {
-          console.log('✓ Subdomain registered successfully');
-          return { success: true, message: `Subdomain ${subdomain}.${parentDomain} registered successfully` };
-        }
+      const page = await browser.newPage();
+      
+      const cookies = await this.jar.getCookies(this.baseURL);
+      const puppeteerCookies = cookies.map(cookie => ({
+        name: cookie.key,
+        value: cookie.value,
+        domain: cookie.domain,
+        path: cookie.path,
+        expires: cookie.expires === 'Infinity' ? -1 : Math.floor(new Date(cookie.expires).getTime() / 1000),
+        httpOnly: cookie.httpOnly,
+        secure: cookie.secure
+      }));
+      
+      await page.setCookie(...puppeteerCookies);
+      
+      const createUrl = `${this.baseURL}/accounts/${accountId}/domains/create`;
+      console.log(`Navigating to: ${createUrl}`);
+      await page.goto(createUrl, { waitUntil: 'networkidle0' });
+      
+      console.log('Clicking custom domain button...');
+      await page.waitForSelector('button[wire\\:click="selectDomainType(\'customDomain\')"]', { timeout: 10000 });
+      await page.click('button[wire\\:click="selectDomainType(\'customDomain\')"]');
+      
+      console.log('Waiting for domain input form to load...');
+      await page.waitForSelector('input[type="text"]', { timeout: 10000 });
+      
+      const fullDomain = `${subdomain}.${parentDomain}`;
+      console.log(`Entering domain: ${fullDomain}`);
+      await page.type('input[type="text"]', fullDomain);
+      
+      console.log('Submitting form...');
+      const submitButton = await page.waitForXPath('//button[contains(text(), "Create Domain")]', { timeout: 10000 });
+      
+      let livewireResponse;
+      await Promise.all([
+        submitButton.click(),
+        page.waitForResponse(response => {
+          if (response.url().includes('/livewire/message/')) {
+            livewireResponse = response;
+            return true;
+          }
+          return response.url().includes('/domains');
+        }, { timeout: 30000 })
+      ]);
+      
+      await page.waitForTimeout(3000);
+      
+      const currentUrl = page.url();
+      console.log('Current URL after submission:', currentUrl);
+      
+      const pageContent = await page.content();
+      const $ = cheerio.load(pageContent);
+      
+      const errorMessage = $('.alert-danger').text().trim() || $('.error').text().trim();
+      
+      if (errorMessage) {
+        throw new Error(`Failed to register subdomain: ${errorMessage}`);
       }
       
-      if (response.status === 200) {
-        const $response = cheerio.load(response.data);
-        const successMessage = $response('.alert-success').text().trim();
-        const errorMessage = $response('.alert-danger').text().trim() ||
-                            $response('.error').text().trim();
-        
-        if (errorMessage) {
-          throw new Error(`Failed to register subdomain: ${errorMessage}`);
-        }
-        
-        if (successMessage || response.data.includes('success')) {
-          console.log('✓ Subdomain registered successfully');
-          return { success: true, message: successMessage || `Subdomain ${subdomain}.${parentDomain} registered successfully` };
-        }
+      if (currentUrl.includes('/domains/') && !currentUrl.includes('/create')) {
+        console.log('✓ Subdomain registered successfully (redirected to domain page)');
+        return { success: true, message: `Subdomain ${subdomain}.${parentDomain} registered successfully` };
+      }
+      
+      const successMessage = $('.alert-success').text().trim();
+      if (successMessage) {
+        console.log('✓ Subdomain registered successfully (success message found)');
+        return { success: true, message: successMessage };
+      }
+      
+      if (livewireResponse && (livewireResponse.status() === 200 || livewireResponse.status() === 204)) {
+        console.log('✓ Subdomain registered successfully (Livewire returned success)');
+        return { success: true, message: `Subdomain ${subdomain}.${parentDomain} registered successfully` };
       }
       
       throw new Error('Subdomain registration failed - unexpected response');
       
     } catch (error) {
       console.error('Error registering subdomain:', error.message);
-      if (error.response && error.response.data) {
-        const $ = cheerio.load(error.response.data);
-        const errorMessage = $('.alert-danger').text().trim();
-        if (errorMessage) {
-          throw new Error(`Failed to register subdomain: ${errorMessage}`);
-        }
-      }
       throw error;
+    } finally {
+      if (browser) {
+        await browser.close();
+      }
     }
   }
 }

@@ -95,6 +95,44 @@ app.get('/', (req, res) => {
         </div>
 
         <div class="test-section">
+          <h2>Register Free InfinityFree Subdomain</h2>
+          <form action="/register-domain" method="POST">
+            <label for="domain_accountId">Account ID:</label><br>
+            <input type="text" id="domain_accountId" name="accountId" placeholder="if0_40106205" required><br>
+            
+            <label for="subdomain">Subdomain Name:</label><br>
+            <input type="text" id="subdomain" name="subdomain" placeholder="mysite" required><br>
+            
+            <label for="domainExtension">Domain Extension:</label><br>
+            <select id="domainExtension" name="domainExtension" required>
+              <option value="wuaze.co">wuaze.co</option>
+              <option value="rf.gd">rf.gd</option>
+              <option value="epizy.com">epizy.com</option>
+              <option value="42web.io">42web.io</option>
+            </select><br>
+            
+            <button type="submit">Register Domain</button>
+          </form>
+        </div>
+
+        <div class="test-section">
+          <h2>Register Custom Subdomain</h2>
+          <p><small>Note: For subdomains of your own custom domain that you've already added to InfinityFree</small></p>
+          <form action="/register-subdomain" method="POST">
+            <label for="sub_accountId">Account ID:</label><br>
+            <input type="text" id="sub_accountId" name="accountId" placeholder="if0_40106205" required><br>
+            
+            <label for="parentDomain">Parent Domain:</label><br>
+            <input type="text" id="parentDomain" name="parentDomain" placeholder="example.com" required><br>
+            
+            <label for="subdomainName">Subdomain Name:</label><br>
+            <input type="text" id="subdomainName" name="subdomain" placeholder="blog" required><br>
+            
+            <button type="submit">Register Subdomain</button>
+          </form>
+        </div>
+
+        <div class="test-section">
           <h2>Create CNAME Record</h2>
           <form action="/create-cname" method="POST">
             <label for="accountId">Account ID:</label><br>
@@ -120,6 +158,8 @@ app.get('/', (req, res) => {
             <li><code>GET /accounts</code> - List all hosting accounts</li>
             <li><code>GET /accounts/:accountId/domains</code> - List domains for an account</li>
             <li><code>GET /accounts/:accountId/domains/:domain/dns</code> - List DNS records</li>
+            <li><code>POST /register-domain</code> - Register a free InfinityFree subdomain</li>
+            <li><code>POST /register-subdomain</code> - Register a custom subdomain</li>
             <li><code>POST /create-cname</code> - Create a CNAME record</li>
           </ul>
         </div>
@@ -183,70 +223,119 @@ app.post('/verify-auth', async (req, res) => {
   }
 });
 
-app.get('/test-domain-create-form', async (req, res) => {
+app.post('/register-domain', async (req, res) => {
   try {
-    const accounts = await authService.getAccounts();
-    if (accounts.length === 0) {
-      return res.send('No accounts found');
+    console.log('Registering free InfinityFree subdomain...');
+    const { accountId, subdomain, domainExtension } = req.body;
+    
+    if (!accountId || !subdomain || !domainExtension) {
+      throw new Error('Missing required fields: accountId, subdomain, domainExtension');
     }
     
-    const accountId = accounts[0].id;
-    const createUrl = `${authService.baseURL}/accounts/${accountId}/domains/create`;
-    const response = await authService.client.get(createUrl);
+    const result = await authService.registerDomain(accountId, subdomain, domainExtension);
     
-    const cheerio = require('cheerio');
-    const $ = cheerio.load(response.data);
-    
-    let output = '<html><head><title>Domain Create Form</title><style>body{font-family:monospace;padding:20px;}pre{background:#f4f4f4;padding:10px;border:1px solid #ddd;max-height:400px;overflow:auto;}</style></head><body>';
-    output += `<h1>Domain Creation Form</h1>`;
-    output += `<p>URL: ${createUrl}</p>`;
-    output += `<p>Page Title: ${$('title').text()}</p>`;
-    
-    output += '<h2>Form Details:</h2><pre>';
-    $('form').each((i, form) => {
-      const action = $(form).attr('action');
-      const method = $(form).attr('method');
-      output += `Form Action: ${action || 'none'}\n`;
-      output += `Form Method: ${method || 'POST'}\n\n`;
-      
-      output += 'Form Inputs:\n';
-      $(form).find('input, select, textarea').each((j, elem) => {
-        const tagName = elem.tagName.toLowerCase();
-        const name = $(elem).attr('name');
-        const type = $(elem).attr('type');
-        const id = $(elem).attr('id');
-        const value = $(elem).attr('value');
-        const placeholder = $(elem).attr('placeholder');
-        
-        output += `  ${tagName.toUpperCase()}:`;
-        if (name) output += ` name="${name}"`;
-        if (type) output += ` type="${type}"`;
-        if (id) output += ` id="${id}"`;
-        if (placeholder) output += ` placeholder="${placeholder}"`;
-        if (value) output += ` value="${value}"`;
-        
-        if (tagName === 'select') {
-          output += '\n    Options:\n';
-          $(elem).find('option').each((k, option) => {
-            const optValue = $(option).attr('value');
-            const optText = $(option).text().trim();
-            output += `      - value="${optValue}" text="${optText}"\n`;
-          });
-        } else {
-          output += '\n';
-        }
-      });
-    });
-    output += '</pre>';
-    
-    output += '<h2>All Text Content:</h2><pre>';
-    output += $('body').text().substring(0, 1000);
-    output += '</pre>';
-    
-    output += '</body></html>';
-    res.send(output);
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Domain Registration Result</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+          .success { background-color: #d4edda; color: #155724; padding: 20px; border-radius: 4px; border: 1px solid #c3e6cb; }
+          a { color: #007bff; text-decoration: none; }
+          a:hover { text-decoration: underline; }
+        </style>
+      </head>
+      <body>
+        <div class="success">
+          <h2>✓ Domain Registered!</h2>
+          <p>${result.message}</p>
+          <p>Domain: ${subdomain}.${domainExtension}</p>
+          <p><a href="/">← Back to Home</a></p>
+        </div>
+      </body>
+      </html>
+    `);
   } catch (error) {
-    res.send(`Error: ${error.message}<br><pre>${error.stack}</pre>`);
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Domain Registration Result</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+          .error { background-color: #f8d7da; color: #721c24; padding: 20px; border-radius: 4px; border: 1px solid #f5c6cb; }
+          a { color: #007bff; text-decoration: none; }
+          a:hover { text-decoration: underline; }
+        </style>
+      </head>
+      <body>
+        <div class="error">
+          <h2>✗ Domain Registration Failed</h2>
+          <p>${error.message}</p>
+          <p><a href="/">← Back to Home</a></p>
+        </div>
+      </body>
+      </html>
+    `);
+  }
+});
+
+app.post('/register-subdomain', async (req, res) => {
+  try {
+    console.log('Registering custom subdomain...');
+    const { accountId, parentDomain, subdomain } = req.body;
+    
+    if (!accountId || !parentDomain || !subdomain) {
+      throw new Error('Missing required fields: accountId, parentDomain, subdomain');
+    }
+    
+    const result = await authService.registerSubdomain(accountId, parentDomain, subdomain);
+    
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Subdomain Registration Result</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+          .success { background-color: #d4edda; color: #155724; padding: 20px; border-radius: 4px; border: 1px solid #c3e6cb; }
+          a { color: #007bff; text-decoration: none; }
+          a:hover { text-decoration: underline; }
+        </style>
+      </head>
+      <body>
+        <div class="success">
+          <h2>✓ Subdomain Registered!</h2>
+          <p>${result.message}</p>
+          <p>Domain: ${subdomain}.${parentDomain}</p>
+          <p><a href="/">← Back to Home</a></p>
+        </div>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Subdomain Registration Result</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+          .error { background-color: #f8d7da; color: #721c24; padding: 20px; border-radius: 4px; border: 1px solid #f5c6cb; }
+          a { color: #007bff; text-decoration: none; }
+          a:hover { text-decoration: underline; }
+        </style>
+      </head>
+      <body>
+        <div class="error">
+          <h2>✗ Subdomain Registration Failed</h2>
+          <p>${error.message}</p>
+          <p><a href="/">← Back to Home</a></p>
+        </div>
+      </body>
+      </html>
+    `);
   }
 });
 

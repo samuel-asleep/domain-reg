@@ -6,8 +6,13 @@ A Node.js application for automating tasks on InfinityFree using cookie-based au
 
 - Cookie-based authentication (no email/password required)
 - Verify authentication status
-- Domain registration (coming soon)
-- CNAME record creation (coming soon)
+- Register free InfinityFree subdomains (e.g., mysite.wuaze.co)
+- Register custom subdomains (e.g., blog.yourdomain.com)
+- Create CNAME DNS records
+- Create MX DNS records
+- Create TXT DNS records
+- View accounts and domains
+- View DNS records for domains
 
 ## Setup
 
@@ -40,19 +45,32 @@ http://localhost:5000
 
 ## How It Works
 
-This application uses authenticated session cookies from your browser to make requests to InfinityFree on your behalf. This approach:
+This application uses authenticated session cookies from your browser to interact with InfinityFree on your behalf. 
 
+**For most features:**
+- Uses standard HTTP requests with your authenticated cookies
+- Fast and lightweight - no browser overhead
+
+**For domain/subdomain registration:**
+- Uses Puppeteer (headless browser) to interact with Livewire JavaScript forms
+- Automatically fills forms and submits them
+- Required because these features use dynamic JavaScript that can't be accessed via simple HTTP requests
+
+This hybrid approach:
 - Eliminates the need for email/password login
 - Avoids CAPTCHA challenges
-- Simplifies the authentication process
-- Uses standard HTTP requests (no browser automation)
+- Handles both simple API calls and complex JavaScript interactions
 
 ## API Endpoints
 
 - `GET /` - Home page with UI
 - `POST /verify-auth` - Verify that your cookies are valid
-- `POST /register-domain` - Register a new domain (coming soon)
-- `POST /create-cname` - Create a CNAME record (coming soon)
+- `GET /accounts` - List all hosting accounts
+- `GET /accounts/:accountId/domains` - List domains for an account
+- `GET /accounts/:accountId/domains/:domain/dns` - List DNS records
+- `POST /register-domain` - Register a free InfinityFree subdomain
+- `POST /register-subdomain` - Register a custom subdomain
+- `POST /create-cname` - Create a CNAME DNS record
 
 ## Security Notes
 
@@ -66,3 +84,4 @@ This application uses authenticated session cookies from your browser to make re
 - Express.js
 - Axios (with cookie jar support)
 - Cheerio (for HTML parsing)
+- Puppeteer-core (for browser automation)
