@@ -183,28 +183,173 @@ app.post('/verify-auth', async (req, res) => {
   }
 });
 
-app.post('/register-domain', async (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Register Domain</title>
-      <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
-        .info { background-color: #cce5ff; color: #004085; padding: 20px; border-radius: 4px; border: 1px solid #b8daff; }
-        a { color: #007bff; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-      </style>
-    </head>
-    <body>
-      <div class="info">
-        <h2>Domain Registration</h2>
-        <p>This feature is coming next! Domain: ${req.body.domain}</p>
-        <p><a href="/">← Back to Home</a></p>
-      </div>
-    </body>
-    </html>
-  `);
+app.get('/test-account-page', async (req, res) => {
+  try {
+    const accounts = await authService.getAccounts();
+    if (accounts.length === 0) {
+      return res.send('No accounts found');
+    }
+    
+    const accountId = accounts[0].id;
+    const accountUrl = `${authService.baseURL}/accounts/${accountId}`;
+    const response = await authService.client.get(accountUrl);
+    
+    const cheerio = require('cheerio');
+    const $ = cheerio.load(response.data);
+    
+    let output = '<html><head><title>Account Page Analysis</title><style>body{font-family:monospace;padding:20px;}pre{background:#f4f4f4;padding:10px;border:1px solid #ddd;max-height:400px;overflow:auto;}</style></head><body>';
+    output += `<h1>Account Page for ${accountId}</h1>`;
+    output += `<p>URL: ${accountUrl}</p>`;
+    
+    output += '<h2>All Links with "domain" or "subdomain":</h2><pre>';
+    $('a').each((i, elem) => {
+      const href = $(elem).attr('href');
+      const text = $(elem).text().trim();
+      if (href && (href.toLowerCase().includes('domain') || text.toLowerCase().includes('domain'))) {
+        output += `Text: "${text}"\nHref: ${href}\n\n`;
+      }
+    });
+    output += '</pre>';
+    
+    output += '<h2>All Buttons:</h2><pre>';
+    $('button, a.btn, a[class*="button"]').each((i, elem) => {
+      const text = $(elem).text().trim();
+      const href = $(elem).attr('href');
+      const onclick = $(elem).attr('onclick');
+      if (text) {
+        output += `Text: "${text}"`;
+        if (href) output += `, Href: ${href}`;
+        if (onclick) output += `, OnClick: ${onclick}`;
+        output += '\n';
+      }
+    });
+    output += '</pre>';
+    
+    output += '</body></html>';
+    res.send(output);
+  } catch (error) {
+    res.send(`Error: ${error.message}<br><pre>${error.stack}</pre>`);
+  }
+});
+
+app.get('/test-forms', async (req, res) => {
+  try {
+    const accounts = await authService.getAccounts();
+    
+    if (accounts.length === 0) {
+      return res.send('No accounts found');
+    }
+    
+    const accountId = accounts[0].id;
+    const cheerio = require('cheerio');
+    let output = '<html><head><title>Form Test</title><style>body{font-family:monospace;padding:20px;}pre{background:#f4f4f4;padding:10px;border:1px solid #ddd;max-height:400px;overflow:auto;}</style></head><body>';
+    output += `<h1>Testing Forms for Account: ${accountId}</h1>`;
+    
+    output += '<h2>Domain Registration Page</h2>';
+    try {
+      const domainCreateUrl = `${authService.baseURL}/accounts/${accountId}/domains/create`;
+      output += `<p>URL: ${domainCreateUrl}</p>`;
+      const domainResponse = await authService.client.get(domainCreateUrl);
+      const $ = cheerio.load(domainResponse.data);
+      
+      const pageTitle = $('title').text();
+      output += `<p>Page Title: ${pageTitle}</p>`;
+      
+      output += '<h3>All Form Elements:</h3><pre>';
+      let formCount = 0;
+      $('form').each((i, form) => {
+        formCount++;
+        const action = $(form).attr('action');
+        const method = $(form).attr('method');
+        output += `\nFORM #${formCount}:\n`;
+        output += `  Action: ${action || 'none'}\n`;
+        output += `  Method: ${method || 'POST'}\n`;
+        output += `  Inputs:\n`;
+        
+        $(form).find('input, select, textarea').each((j, elem) => {
+          const name = $(elem).attr('name');
+          const type = $(elem).attr('type');
+          const placeholder = $(elem).attr('placeholder');
+          const id = $(elem).attr('id');
+          const value = $(elem).attr('value');
+          output += `    - Name: ${name || 'none'}, Type: ${type || elem.tagName}, ID: ${id || 'none'}`;
+          if (placeholder) output += `, Placeholder: ${placeholder}`;
+          if (value) output += `, Value: ${value}`;
+          output += '\n';
+        });
+      });
+      
+      if (formCount === 0) {
+        output += 'No forms found on page. Showing page content snippet:\n\n';
+        output += $('body').text().substring(0, 500);
+      }
+      output += '</pre>';
+      
+    } catch (error) {
+      output += `<p>Error: ${error.message}</p>`;
+      if (error.response) {
+        output += `<p>Status: ${error.response.status}</p>`;
+      }
+    }
+    
+    const domains = await authService.getDomains(accountId);
+    output += `<p>Found ${domains.length} domains</p>`;
+    
+    if (domains.length > 0) {
+      const testDomain = domains[0];
+      output += `<h2>Subdomain Registration Page (for ${testDomain})</h2>`;
+      try {
+        const subdomainCreateUrl = `${authService.baseURL}/accounts/${accountId}/domains/${testDomain}/subdomains/create`;
+        output += `<p>URL: ${subdomainCreateUrl}</p>`;
+        const subdomainResponse = await authService.client.get(subdomainCreateUrl);
+        const $ = cheerio.load(subdomainResponse.data);
+        
+        const pageTitle = $('title').text();
+        output += `<p>Page Title: ${pageTitle}</p>`;
+        
+        output += '<h3>All Form Elements:</h3><pre>';
+        let formCount = 0;
+        $('form').each((i, form) => {
+          formCount++;
+          const action = $(form).attr('action');
+          const method = $(form).attr('method');
+          output += `\nFORM #${formCount}:\n`;
+          output += `  Action: ${action || 'none'}\n`;
+          output += `  Method: ${method || 'POST'}\n`;
+          output += `  Inputs:\n`;
+          
+          $(form).find('input, select, textarea').each((j, elem) => {
+            const name = $(elem).attr('name');
+            const type = $(elem).attr('type');
+            const placeholder = $(elem).attr('placeholder');
+            const id = $(elem).attr('id');
+            const value = $(elem).attr('value');
+            output += `    - Name: ${name || 'none'}, Type: ${type || elem.tagName}, ID: ${id || 'none'}`;
+            if (placeholder) output += `, Placeholder: ${placeholder}`;
+            if (value) output += `, Value: ${value}`;
+            output += '\n';
+          });
+        });
+        
+        if (formCount === 0) {
+          output += 'No forms found on page. Showing page content snippet:\n\n';
+          output += $('body').text().substring(0, 500);
+        }
+        output += '</pre>';
+        
+      } catch (error) {
+        output += `<p>Error: ${error.message}</p>`;
+        if (error.response) {
+          output += `<p>Status: ${error.response.status}</p>`;
+        }
+      }
+    }
+    
+    output += '</body></html>';
+    res.send(output);
+  } catch (error) {
+    res.send(`Error: ${error.message}<br><pre>${error.stack}</pre>`);
+  }
 });
 
 app.get('/accounts', async (req, res) => {
