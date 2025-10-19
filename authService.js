@@ -84,12 +84,22 @@ class InfinityFreeAuth {
       
       if (response.status === 200) {
         const $ = cheerio.load(response.data);
+        const title = $('title').text();
+        
+        const hasLoginForm = $('form[action*="login"]').length > 0 || $('#email').length > 0;
         const hasAccountData = $('[class*="account"]').length > 0 || 
-                              response.data.includes('dashboard');
+                              response.data.toLowerCase().includes('dashboard') ||
+                              response.data.toLowerCase().includes('hosting accounts') ||
+                              title.toLowerCase().includes('accounts');
+        
+        if (hasLoginForm && !hasAccountData) {
+          this.isAuthenticated = false;
+          throw new Error('Cookies expired or invalid - got login page');
+        }
         
         if (hasAccountData) {
           this.isAuthenticated = true;
-          console.log('Authentication verified successfully');
+          console.log('✓ Authentication verified successfully');
           return { success: true, message: 'Authenticated' };
         }
       }
@@ -98,6 +108,8 @@ class InfinityFreeAuth {
       throw new Error('Could not verify authentication');
       
     } catch (error) {
+      console.error('Authentication verification failed:', error.message);
+      
       if (error.response?.status === 302 && error.response.headers.location?.includes('/login')) {
         this.isAuthenticated = false;
         throw new Error('Cookies expired or invalid - redirected to login');

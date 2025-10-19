@@ -33,3 +33,7 @@ packages = ["chromium"]
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 33119
+externalPort = 3000
