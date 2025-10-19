@@ -68,7 +68,7 @@ app.get('/', (req, res) => {
           color: #721c24;
           border: 1px solid #f5c6cb;
         }
-        input {
+        input, select {
           width: 100%;
           padding: 8px;
           margin: 10px 0;
@@ -89,28 +89,39 @@ app.get('/', (req, res) => {
         </div>
 
         <div class="test-section">
-          <h2>Register Domain</h2>
-          <form action="/register-domain" method="POST">
-            <label for="domain">Domain Name:</label><br>
-            <input type="text" id="domain" name="domain" placeholder="example.com" required><br>
-            <button type="submit">Register Domain</button>
-          </form>
+          <h2>View Accounts & Domains</h2>
+          <p>Get a list of your hosting accounts and domains:</p>
+          <a href="/accounts" target="_blank"><button type="button">View Accounts (JSON)</button></a>
         </div>
 
         <div class="test-section">
           <h2>Create CNAME Record</h2>
           <form action="/create-cname" method="POST">
-            <label for="cname_domain">Domain:</label><br>
-            <input type="text" id="cname_domain" name="domain" placeholder="example.com" required><br>
+            <label for="accountId">Account ID:</label><br>
+            <input type="text" id="accountId" name="accountId" placeholder="if0_40106205" required><br>
             
-            <label for="host">Host/Name:</label><br>
+            <label for="cname_domain">Domain:</label><br>
+            <input type="text" id="cname_domain" name="domain" placeholder="scrapes.xo.je" required><br>
+            
+            <label for="host">Host/Name (subdomain):</label><br>
             <input type="text" id="host" name="host" placeholder="www" required><br>
             
             <label for="target">Target/Value:</label><br>
             <input type="text" id="target" name="target" placeholder="target.example.com" required><br>
             
-            <button type="submit">Create CNAME</button>
+            <button type="submit">Create CNAME Record</button>
           </form>
+        </div>
+
+        <div class="test-section">
+          <h2>API Endpoints</h2>
+          <p>Available API endpoints for programmatic access:</p>
+          <ul>
+            <li><code>GET /accounts</code> - List all hosting accounts</li>
+            <li><code>GET /accounts/:accountId/domains</code> - List domains for an account</li>
+            <li><code>GET /accounts/:accountId/domains/:domain/dns</code> - List DNS records</li>
+            <li><code>POST /create-cname</code> - Create a CNAME record</li>
+          </ul>
         </div>
       </div>
     </body>
@@ -196,31 +207,97 @@ app.post('/register-domain', async (req, res) => {
   `);
 });
 
+app.get('/accounts', async (req, res) => {
+  try {
+    console.log('Getting accounts...');
+    const accounts = await authService.getAccounts();
+    
+    res.json({ success: true, accounts });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/accounts/:accountId/domains', async (req, res) => {
+  try {
+    console.log(`Getting domains for account ${req.params.accountId}...`);
+    const domains = await authService.getDomains(req.params.accountId);
+    
+    res.json({ success: true, domains });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/accounts/:accountId/domains/:domain/dns', async (req, res) => {
+  try {
+    console.log(`Getting DNS records for ${req.params.domain}...`);
+    const records = await authService.getDNSRecords(req.params.accountId, req.params.domain);
+    
+    res.json({ success: true, records });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.post('/create-cname', async (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Create CNAME</title>
-      <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
-        .info { background-color: #cce5ff; color: #004085; padding: 20px; border-radius: 4px; border: 1px solid #b8daff; }
-        a { color: #007bff; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-      </style>
-    </head>
-    <body>
-      <div class="info">
-        <h2>CNAME Creation</h2>
-        <p>This feature is coming next!</p>
-        <p>Domain: ${req.body.domain}</p>
-        <p>Host: ${req.body.host}</p>
-        <p>Target: ${req.body.target}</p>
-        <p><a href="/">← Back to Home</a></p>
-      </div>
-    </body>
-    </html>
-  `);
+  try {
+    console.log('Creating CNAME record...');
+    const { accountId, domain, host, target } = req.body;
+    
+    if (!accountId || !domain || !host || !target) {
+      throw new Error('Missing required fields: accountId, domain, host, target');
+    }
+    
+    const result = await authService.createCNAMERecord(accountId, domain, host, target);
+    
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>CNAME Creation Result</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+          .success { background-color: #d4edda; color: #155724; padding: 20px; border-radius: 4px; border: 1px solid #c3e6cb; }
+          a { color: #007bff; text-decoration: none; }
+          a:hover { text-decoration: underline; }
+        </style>
+      </head>
+      <body>
+        <div class="success">
+          <h2>✓ CNAME Record Created!</h2>
+          <p>${result.message}</p>
+          <p>Domain: ${domain}</p>
+          <p>Host: ${host}</p>
+          <p>Target: ${target}</p>
+          <p><a href="/">← Back to Home</a></p>
+        </div>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>CNAME Creation Result</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+          .error { background-color: #f8d7da; color: #721c24; padding: 20px; border-radius: 4px; border: 1px solid #f5c6cb; }
+          a { color: #007bff; text-decoration: none; }
+          a:hover { text-decoration: underline; }
+        </style>
+      </head>
+      <body>
+        <div class="error">
+          <h2>✗ CNAME Creation Failed</h2>
+          <p>${error.message}</p>
+          <p><a href="/">← Back to Home</a></p>
+        </div>
+      </body>
+      </html>
+    `);
+  }
 });
 
 app.listen(PORT, '0.0.0.0', () => {
