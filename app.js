@@ -1,12 +1,14 @@
 require('dotenv').config();
 const express = require('express');
-const InfinityFreeAuth = require('./authService');
+const InfinityFreeAuth = require('./src/authService');
 
 const app = express();
 const PORT = 5000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 const authService = new InfinityFreeAuth();
 

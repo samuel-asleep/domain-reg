@@ -4,14 +4,19 @@ InfinityFree Automation is a Node.js application that automates tasks on the Inf
 
 # Recent Changes
 
+## October 19, 2025 - Added Domain and Subdomain Registration
+- **Added**: Domain registration feature using Puppeteer for Livewire form automation
+- **Added**: Subdomain registration feature for custom domains
+- **Implemented**: Robust success detection with multiple fallback checks (URL redirect, success banners, HTTP status codes)
+- **Fixed**: XPath selector implementation to replace unsupported `:has-text()` pseudo-class
+- **Improved**: Promise.all pattern for proper form submission timing and AJAX response handling
+- **Result**: Full automation of InfinityFree domain/subdomain registration without manual interaction
+
 ## October 19, 2025 - Refactored to Cookie-Only Authentication
 - **Removed**: Email/password login functionality completely removed
-- **Removed**: Puppeteer and all browser automation code eliminated
-- **Removed**: Dependencies: `puppeteer-core` and `turnstile-bypass` uninstalled
 - **Added**: Direct cookie parsing and authentication from browser-exported cookies
 - **Updated**: Authentication now uses `INFINITYFREE_COOKIES` environment variable only
-- **Improved**: Simpler, faster authentication without browser overhead
-- **Result**: 130 fewer npm packages, cleaner codebase, no browser dependencies
+- **Note**: Puppeteer was later re-added specifically for domain registration (Livewire forms require browser automation)
 
 # User Preferences
 
@@ -44,19 +49,20 @@ The application follows a simple modular architecture with clear separation of c
 - Avoids programmatic login flows that trigger CAPTCHAs
 - Maintains session state using `tough-cookie` CookieJar
 
-**Alternatives Considered**:
-- Email/password authentication: Rejected due to CAPTCHA challenges
-- Browser automation (Puppeteer/Playwright): Rejected for being heavyweight and resource-intensive
+**Hybrid Approach**:
+- Cookie-based authentication for most API calls (lightweight and fast)
+- Puppeteer browser automation for Livewire forms (required for domain registration)
 
 **Pros**:
-- Simple implementation
+- Simple implementation for standard operations
 - Bypasses CAPTCHA requirements
 - No credential storage needed
+- Handles complex JavaScript interactions when needed
 
 **Cons**:
 - Requires manual cookie extraction from browser
 - Session expiration requires re-authentication
-- Less automated than programmatic login
+- Puppeteer adds overhead for specific operations
 
 ## HTTP Client Architecture
 
@@ -71,9 +77,15 @@ The application follows a simple modular architecture with clear separation of c
 
 **Cheerio for HTML Parsing**
 - Lightweight jQuery-like API for parsing HTML responses
-- Used for extracting CSRF tokens and form data from InfinityFree pages
+- Used for extracting CSRF tokens, form data, and success/error messages from InfinityFree pages
 
-**Rationale**: Cheerio is fast and familiar for developers who know jQuery, making it easy to extract data from HTML responses without DOM overhead.
+**Puppeteer for Browser Automation**
+- Used specifically for domain and subdomain registration features
+- Handles Livewire (Laravel JavaScript framework) dynamic forms
+- Executes JavaScript and interacts with forms that cannot be accessed via HTTP alone
+- Uses system Chromium from Nix store for headless browsing
+
+**Rationale**: This hybrid approach uses lightweight Cheerio for simple HTTP parsing while leveraging Puppeteer only when JavaScript interaction is required, balancing performance with capability.
 
 ## Configuration Management
 
@@ -103,8 +115,9 @@ The application follows a simple modular architecture with clear separation of c
 - `axios-cookiejar-support` (v6.0.4): Adds cookie jar support to Axios
 - `tough-cookie` (v5.1.2): Cookie parsing and storage
 
-**HTML Parsing**
+**HTML Parsing & Browser Automation**
 - `cheerio` (v1.1.2): Server-side jQuery-like HTML parsing
+- `puppeteer-core` (v23.10.4): Headless browser automation for Livewire forms
 
 **Configuration**
 - `dotenv` (v17.2.3): Environment variable management
