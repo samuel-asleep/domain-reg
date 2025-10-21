@@ -4,6 +4,13 @@ InfinityFree Automation is a Node.js application that automates tasks on the Inf
 
 # Recent Changes
 
+## October 21, 2025 - Added Dynamic Subdomain Extension Discovery
+- **Added**: `getAvailableSubdomainExtensions()` method that dynamically fetches all available subdomain extensions from InfinityFree
+- **Added**: API endpoint `GET /accounts/:accountId/subdomain-extensions` to retrieve subdomain extensions programmatically
+- **Updated**: Frontend now features a "Load Available Extensions" button that populates the dropdown with all 25+ available extensions
+- **Improved**: Users no longer limited to hardcoded extensions; can access all current InfinityFree subdomain options
+- **Result**: Dynamic discovery ensures the app stays up-to-date with InfinityFree's latest subdomain offerings
+
 ## October 19, 2025 - Added Domain and Subdomain Registration
 - **Added**: Domain registration feature using Puppeteer for Livewire form automation
 - **Added**: Subdomain registration feature for custom domains
