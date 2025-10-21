@@ -77,16 +77,12 @@ async function getAccounts() {
 
 async function loadExtensions() {
   const select = document.getElementById('domain_extension');
-  const accountId = document.getElementById('domain_accountId').value.trim();
   
   setStatus('domainStatus', 'Loading extensions...', 'info');
   select.innerHTML = '<option value="">Loading...</option>';
   
   try {
-    const url = accountId 
-      ? `/api/subdomain-extensions?accountId=${encodeURIComponent(accountId)}`
-      : '/api/subdomain-extensions';
-    const response = await fetch(url);
+    const response = await fetch('/api/subdomain-extensions');
     const data = await response.json();
     
     if (data.success && data.extensions && data.extensions.length > 0) {
@@ -109,7 +105,6 @@ async function loadExtensions() {
 }
 
 async function registerDomain() {
-  const accountId = document.getElementById('domain_accountId').value.trim();
   const subdomain = document.getElementById('domain_subdomain').value.trim();
   const extension = document.getElementById('domain_extension').value;
   
@@ -125,10 +120,6 @@ async function registerDomain() {
       subdomain,
       domainExtension: extension
     };
-    
-    if (accountId) {
-      requestBody.accountId = accountId;
-    }
     
     const response = await fetch('/api/register-domain', {
       method: 'POST',
@@ -152,7 +143,6 @@ async function registerDomain() {
 }
 
 async function registerSubdomain() {
-  const accountId = document.getElementById('subdomain_accountId').value.trim();
   const parentDomain = document.getElementById('parent_domain').value.trim();
   const subdomain = document.getElementById('custom_subdomain').value.trim();
   
@@ -168,10 +158,6 @@ async function registerSubdomain() {
       parentDomain,
       subdomain
     };
-    
-    if (accountId) {
-      requestBody.accountId = accountId;
-    }
     
     const response = await fetch('/api/register-subdomain', {
       method: 'POST',
@@ -196,7 +182,6 @@ async function registerSubdomain() {
 }
 
 async function createCNAME() {
-  const accountId = document.getElementById('cname_accountId').value.trim();
   const domain = document.getElementById('cname_domain').value.trim();
   const host = document.getElementById('cname_host').value.trim();
   const target = document.getElementById('cname_target').value.trim();
@@ -214,10 +199,6 @@ async function createCNAME() {
       host,
       target
     };
-    
-    if (accountId) {
-      requestBody.accountId = accountId;
-    }
     
     const response = await fetch('/api/create-cname', {
       method: 'POST',
@@ -243,7 +224,6 @@ async function createCNAME() {
 }
 
 async function getDNSRecords() {
-  const accountId = document.getElementById('dns_accountId').value.trim();
   const domain = document.getElementById('dns_domain').value.trim();
   const container = document.getElementById('dnsRecords');
   
@@ -255,10 +235,7 @@ async function getDNSRecords() {
   container.innerHTML = '<p style="color: #666;">Loading DNS records...</p>';
   
   try {
-    const url = accountId
-      ? `/api/dns-records?domain=${encodeURIComponent(domain)}&accountId=${encodeURIComponent(accountId)}`
-      : `/api/dns-records?domain=${encodeURIComponent(domain)}`;
-    const response = await fetch(url);
+    const response = await fetch(`/api/dns-records?domain=${encodeURIComponent(domain)}`);
     const data = await response.json();
     
     if (data.success && data.records && data.records.length > 0) {
