@@ -237,6 +237,75 @@ class InfinityFreeAuth {
     }
   }
 
+  async deleteDNSRecord(accountId, domain, deleteUrl) {
+    await this.ensureAuthenticated();
+    
+    try {
+      if (!deleteUrl) {
+        throw new Error('Delete URL not provided');
+      }
+      
+      console.log(`Deleting DNS record: ${deleteUrl}`);
+      
+      const fullUrl = deleteUrl.startsWith('http') ? deleteUrl : `${this.baseURL}${deleteUrl}`;
+      
+      const pageResponse = await this.client.get(fullUrl.replace(/\/delete$/, ''));
+      const $ = cheerio.load(pageResponse.data);
+      const csrfToken = $('input[name="_token"]').first().attr('value') || 
+                       $('meta[name="csrf-token"]').attr('content');
+      
+      const formData = csrfToken ? { _token: csrfToken, _method: 'DELETE' } : { _method: 'DELETE' };
+      
+      const response = await this.client.post(fullUrl, new URLSearchParams(formData).toString(), {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Referer': fullUrl,
+          'Origin': this.baseURL
+        },
+        maxRedirects: 0,
+        validateStatus: (status) => status >= 200 && status < 400
+      });
+      
+      if (response.status === 302 || response.status === 303) {
+        const redirectLocation = response.headers.location;
+        if (redirectLocation && redirectLocation.includes('dnsRecords')) {
+          console.log('✓ DNS record deleted successfully');
+          return { success: true, message: 'DNS record deleted successfully' };
+        }
+      }
+      
+      if (response.status === 200) {
+        const $response = cheerio.load(response.data);
+        const successMessage = $response('.alert-success').text().trim();
+        const errorMessage = $response('.alert-danger').text().trim() ||
+                            $response('.error').text().trim();
+        
+        if (errorMessage) {
+          throw new Error(`Failed to delete DNS record: ${errorMessage}`);
+        }
+        
+        if (successMessage || response.data.includes('deleted') || response.data.includes('success')) {
+          console.log('✓ DNS record deleted successfully');
+          return { success: true, message: successMessage || 'DNS record deleted successfully' };
+        }
+      }
+      
+      console.log('✓ DNS record deletion request sent');
+      return { success: true, message: 'DNS record deletion request sent' };
+      
+    } catch (error) {
+      console.error('Error deleting DNS record:', error.message);
+      if (error.response && error.response.data) {
+        const $ = cheerio.load(error.response.data);
+        const errorMessage = $('.alert-danger').text().trim();
+        if (errorMessage) {
+          throw new Error(`Failed to delete DNS record: ${errorMessage}`);
+        }
+      }
+      throw error;
+    }
+  }
+
   async createCNAMERecord(accountId, domain, name, target) {
     await this.ensureAuthenticated();
     
