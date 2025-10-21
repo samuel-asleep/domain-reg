@@ -389,6 +389,74 @@ class InfinityFreeAuth {
     }
   }
 
+  async getAvailableSubdomainExtensions(accountId) {
+    await this.ensureAuthenticated();
+    
+    const puppeteer = require('puppeteer-core');
+    let browser;
+    
+    try {
+      console.log('Fetching available subdomain extensions...');
+      
+      browser = await puppeteer.launch({
+        executablePath: '/nix/store/qa9cnw4v5xkxyip6mb9kxqfq1z4x2dx1-chromium-138.0.7204.100/bin/chromium',
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      });
+      
+      const page = await browser.newPage();
+      
+      const cookies = await this.jar.getCookies(this.baseURL);
+      const puppeteerCookies = cookies.map(cookie => ({
+        name: cookie.key,
+        value: cookie.value,
+        domain: cookie.domain,
+        path: cookie.path,
+        expires: cookie.expires === 'Infinity' ? -1 : Math.floor(new Date(cookie.expires).getTime() / 1000),
+        httpOnly: cookie.httpOnly,
+        secure: cookie.secure
+      }));
+      
+      await page.setCookie(...puppeteerCookies);
+      
+      const createUrl = `${this.baseURL}/accounts/${accountId}/domains/create`;
+      console.log(`Navigating to: ${createUrl}`);
+      await page.goto(createUrl, { waitUntil: 'networkidle0' });
+      
+      console.log('Clicking subdomain button...');
+      await page.waitForSelector('button[wire\\:click="selectDomainType(\'subdomain\')"]', { timeout: 10000 });
+      await page.click('button[wire\\:click="selectDomainType(\'subdomain\')"]');
+      
+      console.log('Waiting for form to load...');
+      await page.waitForSelector('select', { timeout: 10000 });
+      
+      console.log('Extracting available extensions...');
+      const extensions = await page.evaluate(() => {
+        const selectElement = document.querySelector('select');
+        if (!selectElement) return [];
+        
+        const options = Array.from(selectElement.options);
+        return options
+          .filter(option => option.value && option.value.trim() !== '')
+          .map(option => ({
+            value: option.value,
+            label: option.textContent.trim()
+          }));
+      });
+      
+      console.log(`✓ Found ${extensions.length} available subdomain extensions`);
+      return { success: true, extensions };
+      
+    } catch (error) {
+      console.error('Error fetching subdomain extensions:', error.message);
+      throw error;
+    } finally {
+      if (browser) {
+        await browser.close();
+      }
+    }
+  }
+
   async registerDomain(accountId, subdomain, domainExtension) {
     await this.ensureAuthenticated();
     

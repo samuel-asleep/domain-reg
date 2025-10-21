@@ -107,11 +107,10 @@ app.get('/', (req, res) => {
             
             <label for="domainExtension">Domain Extension:</label><br>
             <select id="domainExtension" name="domainExtension" required>
-              <option value="wuaze.co">wuaze.co</option>
-              <option value="rf.gd">rf.gd</option>
-              <option value="epizy.com">epizy.com</option>
-              <option value="42web.io">42web.io</option>
+              <option value="">Loading extensions...</option>
             </select><br>
+            <button type="button" onclick="loadExtensions()" id="loadExtBtn">Load Available Extensions</button>
+            <span id="extStatus" style="margin-left: 10px;"></span><br><br>
             
             <button type="submit">Register Domain</button>
           </form>
@@ -160,12 +159,63 @@ app.get('/', (req, res) => {
             <li><code>GET /accounts</code> - List all hosting accounts</li>
             <li><code>GET /accounts/:accountId/domains</code> - List domains for an account</li>
             <li><code>GET /accounts/:accountId/domains/:domain/dns</code> - List DNS records</li>
+            <li><code>GET /accounts/:accountId/subdomain-extensions</code> - Get available subdomain extensions</li>
             <li><code>POST /register-domain</code> - Register a free InfinityFree subdomain</li>
             <li><code>POST /register-subdomain</code> - Register a custom subdomain</li>
             <li><code>POST /create-cname</code> - Create a CNAME record</li>
           </ul>
         </div>
       </div>
+      
+      <script>
+        async function loadExtensions() {
+          const accountId = document.getElementById('domain_accountId').value;
+          const select = document.getElementById('domainExtension');
+          const btn = document.getElementById('loadExtBtn');
+          const status = document.getElementById('extStatus');
+          
+          if (!accountId) {
+            status.textContent = '⚠ Please enter Account ID first';
+            status.style.color = 'orange';
+            return;
+          }
+          
+          btn.disabled = true;
+          btn.textContent = 'Loading...';
+          status.textContent = '⏳ Fetching extensions...';
+          status.style.color = 'blue';
+          select.innerHTML = '<option value="">Loading...</option>';
+          
+          try {
+            const response = await fetch(\`/accounts/\${accountId}/subdomain-extensions\`);
+            const data = await response.json();
+            
+            if (data.success && data.extensions && data.extensions.length > 0) {
+              select.innerHTML = '';
+              data.extensions.forEach(ext => {
+                const option = document.createElement('option');
+                option.value = ext.value;
+                option.textContent = ext.label || ext.value;
+                select.appendChild(option);
+              });
+              status.textContent = \`✓ Loaded \${data.extensions.length} extensions\`;
+              status.style.color = 'green';
+            } else {
+              select.innerHTML = '<option value="">No extensions found</option>';
+              status.textContent = '⚠ No extensions found';
+              status.style.color = 'orange';
+            }
+          } catch (error) {
+            console.error('Error loading extensions:', error);
+            select.innerHTML = '<option value="">Error loading</option>';
+            status.textContent = '✗ Error: ' + error.message;
+            status.style.color = 'red';
+          } finally {
+            btn.disabled = false;
+            btn.textContent = 'Load Available Extensions';
+          }
+        }
+      </script>
     </body>
     </html>
   `);
@@ -489,6 +539,17 @@ app.get('/accounts/:accountId/domains/:domain/dns', async (req, res) => {
     const records = await authService.getDNSRecords(req.params.accountId, req.params.domain);
     
     res.json({ success: true, records });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/accounts/:accountId/subdomain-extensions', async (req, res) => {
+  try {
+    console.log(`Getting available subdomain extensions for account ${req.params.accountId}...`);
+    const result = await authService.getAvailableSubdomainExtensions(req.params.accountId);
+    
+    res.json(result);
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
