@@ -13,6 +13,10 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById(targetTab).classList.add('active');
     });
   });
+
+  // Auto-load domain extensions on startup for better UX
+  console.log('Auto-loading domain extensions...');
+  loadExtensions();
 });
 
 function setStatus(elementId, message, type = 'info') {

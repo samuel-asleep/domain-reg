@@ -551,11 +551,14 @@ class InfinityFreeAuth {
       await page.select('select', domainExtension);
       
       console.log('Submitting form...');
-      const submitButton = await page.waitForXPath('//button[contains(text(), "Create Domain")]', { timeout: 10000 });
       
       let livewireResponse;
       await Promise.all([
-        submitButton.click(),
+        page.evaluate(() => {
+          const buttons = Array.from(document.querySelectorAll('button'));
+          const createButton = buttons.find(btn => btn.textContent.includes('Create Domain'));
+          if (createButton) createButton.click();
+        }),
         page.waitForResponse(response => {
           if (response.url().includes('/livewire/message/')) {
             livewireResponse = response;
@@ -673,11 +676,14 @@ class InfinityFreeAuth {
       await page.type('input[type="text"]', fullDomain);
       
       console.log('Submitting form...');
-      const submitButton = await page.waitForXPath('//button[contains(text(), "Create Domain")]', { timeout: 10000 });
       
       let livewireResponse;
       await Promise.all([
-        submitButton.click(),
+        page.evaluate(() => {
+          const buttons = Array.from(document.querySelectorAll('button'));
+          const createButton = buttons.find(btn => btn.textContent.includes('Create Domain'));
+          if (createButton) createButton.click();
+        }),
         page.waitForResponse(response => {
           if (response.url().includes('/livewire/message/')) {
             livewireResponse = response;
