@@ -208,6 +208,33 @@ app.get('/api/dns-records', async (req, res) => {
   }
 });
 
+app.delete('/api/dns-records', async (req, res) => {
+  try {
+    const accountId = getAccountId(req.body.accountId);
+    const { domain, deleteUrl } = req.body;
+    
+    if (!domain || !deleteUrl) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing required fields: domain, deleteUrl' 
+      });
+    }
+    
+    console.log(`Deleting DNS record for ${domain}...`);
+    const result = await authService.deleteDNSRecord(accountId, domain, deleteUrl);
+    
+    res.json({ 
+      success: true, 
+      message: result.message 
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
 app.post('/verify-auth', async (req, res) => {
   try {
     console.log('Verifying authentication...');
