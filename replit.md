@@ -4,6 +4,15 @@ InfinityFree Automation is a Node.js application that automates tasks on the Inf
 
 # Recent Changes
 
+## October 21, 2025 - Made App Portable for Render and Koyeb Deployment
+- **Updated**: Dockerfile now installs Chromium via Alpine package manager instead of relying on Nix
+- **Changed**: Chromium executable path now uses environment variables with fallback chain
+- **Added**: `CHROMIUM_PATH` environment variable support for custom Chromium paths
+- **Enhanced**: Auto-detection of Chromium location (Nix store for Replit, `/usr/bin/chromium-browser` for Docker)
+- **Improved**: Docker image now includes all required fonts and libraries for headless Chromium
+- **Updated**: README with deployment instructions for Render and Koyeb platforms
+- **Result**: App can now be deployed to Render, Koyeb, or any Docker-compatible platform
+
 ## October 21, 2025 - Fixed Puppeteer Error & Implemented Auto-Loading
 - **Fixed**: Puppeteer `waitForXPath is not a function` error by replacing deprecated method with `page.evaluate()` approach
 - **Improved**: Button clicking now uses modern DOM query instead of XPath selectors for better reliability
@@ -98,7 +107,7 @@ The application follows a simple modular architecture with clear separation of c
 - Used specifically for domain and subdomain registration features
 - Handles Livewire (Laravel JavaScript framework) dynamic forms
 - Executes JavaScript and interacts with forms that cannot be accessed via HTTP alone
-- Uses system Chromium from Nix store for headless browsing
+- Auto-detects Chromium location (Nix store on Replit, system packages in Docker)
 
 **Rationale**: This hybrid approach uses lightweight Cheerio for simple HTTP parsing while leveraging Puppeteer only when JavaScript interaction is required, balancing performance with capability.
 
@@ -106,6 +115,8 @@ The application follows a simple modular architecture with clear separation of c
 
 **Environment Variables via dotenv**
 - `INFINITYFREE_COOKIES`: Stores browser-exported cookies
+- `DEFAULT_ACCOUNT_ID`: Optional default account ID for simplified API calls
+- `CHROMIUM_PATH`: Optional custom Chromium path (auto-detected if not set)
 - Separates configuration from code
 - `.env.example` provides template for users
 

@@ -122,6 +122,10 @@ For complete API documentation with request/response examples, visit the **API D
   - Format: `if0_12345678`
   - Never exposed to the frontend for security
   - Used internally by the API for simplified requests
+- `CHROMIUM_PATH` (Optional) - Custom path to Chromium executable
+  - Automatically set in Docker to `/usr/bin/chromium-browser`
+  - On Replit, set to the Nix store path
+  - Usually not needed - the app auto-detects the correct path
 
 ## Security Notes
 
@@ -137,8 +141,41 @@ The Dockerfile is optimized for production:
 - Multi-stage build for smaller image size
 - Runs as non-root user for security
 - Uses Node.js 20 Alpine for minimal footprint
+- Includes Chromium for Puppeteer browser automation
 - Includes health checks in docker-compose.yml
 - Automatic restart on failure
+
+### Deploying to Render
+
+1. Create a new **Web Service** on Render
+2. Connect your Git repository
+3. Configure the service:
+   - **Environment**: Docker
+   - **Dockerfile**: Use the Dockerfile in the repository
+   - **Port**: 5000
+4. Add environment variables:
+   - `INFINITYFREE_COOKIES`: Your InfinityFree session cookies
+   - `DEFAULT_ACCOUNT_ID`: (Optional) Your default account ID
+5. Deploy!
+
+### Deploying to Koyeb
+
+1. Push your Docker image to a registry (Docker Hub, GitHub Container Registry, etc.):
+```bash
+docker build -t your-username/infinityfree-automation .
+docker push your-username/infinityfree-automation
+```
+
+2. Create a new **Web Service** on Koyeb
+3. Select **Docker** as deployment method
+4. Enter your Docker image: `your-username/infinityfree-automation`
+5. Set **Exposed port** to `5000`
+6. Add environment variables:
+   - `INFINITYFREE_COOKIES`: Your InfinityFree session cookies
+   - `DEFAULT_ACCOUNT_ID`: (Optional) Your default account ID
+7. Deploy!
+
+**Alternative**: Koyeb also supports direct Git deployment with Dockerfile detection.
 
 ## Tech Stack
 
