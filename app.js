@@ -208,40 +208,6 @@ app.get('/api/dns-records', async (req, res) => {
   }
 });
 
-app.delete('/api/dns-records', async (req, res) => {
-  try {
-    const accountId = getAccountId(req.body.accountId);
-    const { domain, deleteUrl, deleteToken } = req.body;
-    
-    if (!domain || !deleteUrl || !deleteToken) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Missing required fields: domain, deleteUrl, deleteToken' 
-      });
-    }
-    
-    console.log(`Deleting DNS record for ${domain}...`);
-    const result = await authService.deleteDNSRecord(accountId, domain, deleteUrl, deleteToken);
-    
-    res.json({ 
-      success: true, 
-      message: result.message
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
-    });
-  }
-});
-
-app.get('/api/check-default-account', (req, res) => {
-  const hasDefault = !!DEFAULT_ACCOUNT_ID;
-  res.json({ 
-    hasDefaultAccount: hasDefault
-  });
-});
-
 app.post('/verify-auth', async (req, res) => {
   try {
     console.log('Verifying authentication...');

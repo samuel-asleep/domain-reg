@@ -195,39 +195,16 @@ class InfinityFreeAuth {
       const records = [];
       $('table tbody tr').each((i, row) => {
         const cells = [];
-        const $row = $(row);
-        
-        $row.find('td').each((j, cell) => {
+        $(row).find('td').each((j, cell) => {
           cells.push($(cell).text().trim());
         });
         
         if (cells.length >= 3) {
-          const record = {
+          records.push({
             domain: cells[0],
             type: cells[1],
             target: cells[2]
-          };
-          
-          const deleteForm = $row.find('form[action*="delete"]').first();
-          const deleteButton = $row.find('button[type="submit"]').filter((i, btn) => {
-            const btnText = $(btn).text().toLowerCase();
-            return btnText.includes('delete') || btnText.includes('remove');
-          }).first();
-          
-          if (deleteForm.length > 0 && deleteButton.length > 0) {
-            const deleteAction = deleteForm.attr('action');
-            const csrfToken = deleteForm.find('input[name="_token"]').attr('value');
-            const methodInput = deleteForm.find('input[name="_method"]').attr('value');
-            
-            record.deleteable = true;
-            record.deleteUrl = deleteAction;
-            record.deleteToken = csrfToken;
-            record.deleteMethod = methodInput || 'DELETE';
-          } else {
-            record.deleteable = false;
-          }
-          
-          records.push(record);
+          });
         }
       });
       
@@ -755,62 +732,6 @@ class InfinityFreeAuth {
       if (browser) {
         await browser.close();
       }
-    }
-  }
-
-  async deleteDNSRecord(accountId, domain, deleteUrl, deleteToken) {
-    await this.ensureAuthenticated();
-    
-    try {
-      console.log(`Deleting DNS record: ${deleteUrl}`);
-      
-      const fullUrl = deleteUrl.startsWith('http') ? deleteUrl : `${this.baseURL}${deleteUrl}`;
-      
-      const formData = {
-        _token: deleteToken,
-        _method: 'DELETE'
-      };
-      
-      const response = await this.client.post(fullUrl, new URLSearchParams(formData).toString(), {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Referer': `${this.baseURL}/accounts/${accountId}/domains/${domain}/dnsRecords`,
-          'Origin': this.baseURL
-        },
-        maxRedirects: 0,
-        validateStatus: (status) => status >= 200 && status < 400
-      });
-      
-      if (response.status === 302 || response.status === 303) {
-        console.log('✓ DNS record deleted successfully');
-        return { success: true, message: 'DNS record deleted successfully' };
-      }
-      
-      if (response.status === 200) {
-        const $ = cheerio.load(response.data);
-        const successMessage = $('.alert-success').text().trim();
-        const errorMessage = $('.alert-danger').text().trim() || $('.error').text().trim();
-        
-        if (errorMessage) {
-          throw new Error(`Failed to delete DNS record: ${errorMessage}`);
-        }
-        
-        console.log('✓ DNS record deleted successfully');
-        return { success: true, message: successMessage || 'DNS record deleted successfully' };
-      }
-      
-      throw new Error('DNS record deletion failed - unexpected response');
-      
-    } catch (error) {
-      console.error('Error deleting DNS record:', error.message);
-      if (error.response && error.response.data) {
-        const $ = cheerio.load(error.response.data);
-        const errorMessage = $('.alert-danger').text().trim();
-        if (errorMessage) {
-          throw new Error(`Failed to delete DNS record: ${errorMessage}`);
-        }
-      }
-      throw error;
     }
   }
 }
