@@ -14,10 +14,43 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // Check for default account ID and auto-fill fields
+  checkDefaultAccount();
+
   // Auto-load domain extensions on startup for better UX
   console.log('Auto-loading domain extensions...');
   loadExtensions();
 });
+
+async function checkDefaultAccount() {
+  try {
+    const response = await fetch('/api/check-default-account');
+    const data = await response.json();
+    
+    if (data.hasDefaultAccount) {
+      const accountFields = [
+        'domain_accountId',
+        'subdomain_accountId',
+        'cname_accountId',
+        'dns_accountId'
+      ];
+      
+      accountFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+          field.value = '(Using default account ID)';
+          field.disabled = true;
+          field.style.background = '#e9ecef';
+          field.style.cursor = 'not-allowed';
+        }
+      });
+      
+      console.log('✓ Default account ID is configured - account fields auto-filled and disabled');
+    }
+  } catch (error) {
+    console.error('Error checking default account:', error);
+  }
+}
 
 function setStatus(elementId, message, type = 'info') {
   const element = document.getElementById(elementId);
@@ -255,7 +288,7 @@ async function getDNSRecords() {
   container.innerHTML = '<p style="color: #666;">Loading DNS records...</p>';
   
   try {
-    const url = accountId
+    const url = accountId && !accountId.includes('default')
       ? `/api/dns-records?domain=${encodeURIComponent(domain)}&accountId=${encodeURIComponent(accountId)}`
       : `/api/dns-records?domain=${encodeURIComponent(domain)}`;
     const response = await fetch(url);
@@ -269,13 +302,28 @@ async function getDNSRecords() {
       html += '<th style="padding: 10px; text-align: left; border-bottom: 2px solid #dee2e6;">Domain</th>';
       html += '<th style="padding: 10px; text-align: left; border-bottom: 2px solid #dee2e6;">Type</th>';
       html += '<th style="padding: 10px; text-align: left; border-bottom: 2px solid #dee2e6;">Target</th>';
+      html += '<th style="padding: 10px; text-align: left; border-bottom: 2px solid #dee2e6;">Actions</th>';
       html += '</tr></thead><tbody>';
       
-      data.records.forEach(record => {
+      data.records.forEach((record, index) => {
         html += `<tr style="border-bottom: 1px solid #dee2e6;">
           <td style="padding: 10px;"><code>${record.domain}</code></td>
           <td style="padding: 10px;"><span style="background: #e7f5ff; color: #0066cc; padding: 4px 8px; border-radius: 4px; font-weight: 600;">${record.type}</span></td>
           <td style="padding: 10px;"><code>${record.target}</code></td>
+          <td style="padding: 10px;">`;
+        
+        if (record.deleteable) {
+          html += `<button onclick="deleteDNSRecord('${domain}', '${record.deleteUrl}', '${record.deleteToken}', ${index})" 
+            style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.875rem;"
+            onmouseover="this.style.background='#c82333'" 
+            onmouseout="this.style.background='#dc3545'">
+            Delete
+          </button>`;
+        } else {
+          html += '<span style="color: #6c757d; font-size: 0.875rem;">-</span>';
+        }
+        
+        html += `</td>
         </tr>`;
       });
       
@@ -286,5 +334,43 @@ async function getDNSRecords() {
     }
   } catch (error) {
     container.innerHTML = `<p style="color: #dc3545;">Error: ${error.message}</p>`;
+  }
+}
+
+async function deleteDNSRecord(domain, deleteUrl, deleteToken, recordIndex) {
+  if (!confirm('Are you sure you want to delete this DNS record? This action cannot be undone.')) {
+    return;
+  }
+  
+  try {
+    const accountId = document.getElementById('dns_accountId').value.trim();
+    const requestBody = {
+      domain,
+      deleteUrl,
+      deleteToken
+    };
+    
+    if (accountId && !accountId.includes('default')) {
+      requestBody.accountId = accountId;
+    }
+    
+    const response = await fetch('/api/dns-records', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      alert('✓ DNS record deleted successfully');
+      getDNSRecords();
+    } else {
+      alert('✗ Failed to delete DNS record: ' + data.message);
+    }
+  } catch (error) {
+    alert('✗ Error: ' + error.message);
   }
 }
