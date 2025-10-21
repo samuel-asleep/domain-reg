@@ -4,6 +4,14 @@ InfinityFree Automation is a Node.js application that automates tasks on the Inf
 
 # Recent Changes
 
+## October 21, 2025 - Fixed Puppeteer Error & Implemented Auto-Loading
+- **Fixed**: Puppeteer `waitForXPath is not a function` error by replacing deprecated method with `page.evaluate()` approach
+- **Improved**: Button clicking now uses modern DOM query instead of XPath selectors for better reliability
+- **Added**: Auto-loading of domain extensions on page startup in `public/app.js` 
+- **Enhanced UX**: Users no longer need to manually click "Load Extensions" button - extensions load automatically when page opens
+- **Performance**: Extensions cached after first load, improving subsequent registration speed
+- **Result**: Faster, more streamlined domain registration workflow
+
 ## October 21, 2025 - Added Dynamic Subdomain Extension Discovery
 - **Added**: `getAvailableSubdomainExtensions()` method that dynamically fetches all available subdomain extensions from InfinityFree
 - **Added**: API endpoint `GET /accounts/:accountId/subdomain-extensions` to retrieve subdomain extensions programmatically
