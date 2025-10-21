@@ -428,21 +428,58 @@ class InfinityFreeAuth {
       await page.click('button[wire\\:click="selectDomainType(\'subdomain\')"]');
       
       console.log('Waiting for form to load...');
-      await page.waitForSelector('select', { timeout: 10000 });
+      await page.waitForTimeout(2000);
       
       console.log('Extracting available extensions...');
-      const extensions = await page.evaluate(() => {
-        const selectElement = document.querySelector('select');
-        if (!selectElement) return [];
+      const pageInfo = await page.evaluate(() => {
+        const selectElements = document.querySelectorAll('select');
+        console.log('Found select elements:', selectElements.length);
+        
+        let selectElement = null;
+        
+        for (const select of selectElements) {
+          if (select.options && select.options.length > 0) {
+            const firstOption = select.options[0];
+            if (firstOption && (firstOption.value.includes('.') || firstOption.textContent.includes('.'))) {
+              selectElement = select;
+              break;
+            }
+          }
+        }
+        
+        if (!selectElement && selectElements.length > 0) {
+          selectElement = selectElements[0];
+        }
+        
+        if (!selectElement) {
+          return {
+            extensions: [],
+            debug: {
+              selectCount: selectElements.length,
+              bodySnippet: document.body?.textContent?.substring(0, 500) || 'No body'
+            }
+          };
+        }
         
         const options = Array.from(selectElement.options);
-        return options
+        const extensions = options
           .filter(option => option.value && option.value.trim() !== '')
           .map(option => ({
             value: option.value,
             label: option.textContent.trim()
           }));
+        
+        return {
+          extensions,
+          debug: {
+            selectCount: selectElements.length,
+            optionsCount: options.length
+          }
+        };
       });
+      
+      const extensions = pageInfo.extensions;
+      console.log('Debug info:', JSON.stringify(pageInfo.debug, null, 2));
       
       console.log(`✓ Found ${extensions.length} available subdomain extensions`);
       return { success: true, extensions };
