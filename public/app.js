@@ -110,13 +110,14 @@ async function getAccounts() {
 
 async function loadExtensions() {
   const select = document.getElementById('domain_extension');
-  const accountId = document.getElementById('domain_accountId').value.trim();
+  const accountIdField = document.getElementById('domain_accountId');
+  const accountId = accountIdField.value.trim();
   
   setStatus('domainStatus', 'Loading extensions...', 'info');
   select.innerHTML = '<option value="">Loading...</option>';
   
   try {
-    const url = accountId 
+    const url = (accountId && !accountId.includes('default'))
       ? `/api/subdomain-extensions?accountId=${encodeURIComponent(accountId)}`
       : '/api/subdomain-extensions';
     const response = await fetch(url);
@@ -142,7 +143,8 @@ async function loadExtensions() {
 }
 
 async function registerDomain() {
-  const accountId = document.getElementById('domain_accountId').value.trim();
+  const accountIdField = document.getElementById('domain_accountId');
+  const accountId = accountIdField.value.trim();
   const subdomain = document.getElementById('domain_subdomain').value.trim();
   const extension = document.getElementById('domain_extension').value;
   
@@ -159,7 +161,7 @@ async function registerDomain() {
       domainExtension: extension
     };
     
-    if (accountId) {
+    if (accountId && !accountId.includes('default')) {
       requestBody.accountId = accountId;
     }
     
@@ -185,7 +187,8 @@ async function registerDomain() {
 }
 
 async function registerSubdomain() {
-  const accountId = document.getElementById('subdomain_accountId').value.trim();
+  const accountIdField = document.getElementById('subdomain_accountId');
+  const accountId = accountIdField.value.trim();
   const parentDomain = document.getElementById('parent_domain').value.trim();
   const subdomain = document.getElementById('custom_subdomain').value.trim();
   
@@ -202,7 +205,7 @@ async function registerSubdomain() {
       subdomain
     };
     
-    if (accountId) {
+    if (accountId && !accountId.includes('default')) {
       requestBody.accountId = accountId;
     }
     
@@ -229,7 +232,8 @@ async function registerSubdomain() {
 }
 
 async function createCNAME() {
-  const accountId = document.getElementById('cname_accountId').value.trim();
+  const accountIdField = document.getElementById('cname_accountId');
+  const accountId = accountIdField.value.trim();
   const domain = document.getElementById('cname_domain').value.trim();
   const host = document.getElementById('cname_host').value.trim();
   const target = document.getElementById('cname_target').value.trim();
@@ -248,7 +252,7 @@ async function createCNAME() {
       target
     };
     
-    if (accountId) {
+    if (accountId && !accountId.includes('default')) {
       requestBody.accountId = accountId;
     }
     
