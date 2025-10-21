@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InfinityFree Automation API</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>InfinityFree Automation API</h1>
+      <p>Manage your InfinityFree hosting accounts, domains, and DNS records programmatically</p>
+    </header>
+
+    <div class="content">
+      <div class="tabs">
+        <button class="tab active" data-tab="dashboard">Dashboard</button>
+        <button class="tab" data-tab="api-docs">API Documentation</button>
+        <button class="tab" data-tab="domain-tools">Domain Tools</button>
+        <button class="tab" data-tab="dns-tools">DNS Tools</button>
+      </div>
+
+      <div id="dashboard" class="tab-content active">
+        <div class="alert info">
+          <strong>Welcome!</strong> This API allows you to automate InfinityFree hosting operations. Use the tabs above to explore different features.
+        </div>
+
+        <div class="section">
+          <h2>Verify Authentication</h2>
+          <p>Test that your InfinityFree cookies are properly configured and working.</p>
+          <button onclick="verifyAuth()">Verify Authentication</button>
+          <span id="authStatus" class="status-message"></span>
+        </div>
+
+        <div class="section">
+          <h2>View Accounts</h2>
+          <p>Retrieve a list of all your InfinityFree hosting accounts.</p>
+          <button onclick="getAccounts()">Load Accounts</button>
+          <div id="accountsList" style="margin-top: 20px;"></div>
+        </div>
+      </div>
+
+      <div id="api-docs" class="tab-content">
+        <h2 style="margin-bottom: 30px;">API Reference</h2>
+        
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method get">GET</span>
+            <span class="api-path">/accounts</span>
+          </div>
+          <p class="api-description">Retrieve a list of all hosting accounts associated with your InfinityFree account.</p>
+          <div class="api-example">
+            <h4>Response Example:</h4>
+            <pre>{
+  "success": true,
+  "accounts": [
+    {
+      "id": "if0_12345678",
+      "name": "mywebsite"
+    }
+  ]
+}</pre>
+          </div>
+        </div>
+
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method get">GET</span>
+            <span class="api-path">/accounts/:accountId/domains</span>
+          </div>
+          <p class="api-description">Get all domains associated with a specific hosting account.</p>
+          <div class="api-example">
+            <h4>Example Request:</h4>
+            <pre>GET /accounts/if0_12345678/domains</pre>
+          </div>
+          <div class="api-example">
+            <h4>Response Example:</h4>
+            <pre>{
+  "success": true,
+  "domains": [
+    "mysite.infinityfreeapp.com",
+    "example.com"
+  ]
+}</pre>
+          </div>
+        </div>
+
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method get">GET</span>
+            <span class="api-path">/accounts/:accountId/domains/:domain/dns</span>
+          </div>
+          <p class="api-description">Retrieve DNS records for a specific domain.</p>
+          <div class="api-example">
+            <h4>Example Request:</h4>
+            <pre>GET /accounts/if0_12345678/domains/example.com/dns</pre>
+          </div>
+          <div class="api-example">
+            <h4>Response Example:</h4>
+            <pre>{
+  "success": true,
+  "records": [
+    {
+      "domain": "example.com",
+      "type": "A",
+      "target": "192.0.2.1"
+    },
+    {
+      "domain": "www.example.com",
+      "type": "CNAME",
+      "target": "example.com"
+    }
+  ]
+}</pre>
+          </div>
+        </div>
+
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method get">GET</span>
+            <span class="api-path">/accounts/:accountId/subdomain-extensions</span>
+          </div>
+          <p class="api-description">Get available free subdomain extensions for an account (e.g., .infinityfreeapp.com, .rf.gd).</p>
+          <div class="api-example">
+            <h4>Response Example:</h4>
+            <pre>{
+  "success": true,
+  "extensions": [
+    {
+      "value": "infinityfreeapp.com",
+      "label": "infinityfreeapp.com"
+    },
+    {
+      "value": "rf.gd",
+      "label": "rf.gd"
+    }
+  ]
+}</pre>
+          </div>
+        </div>
+
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method post">POST</span>
+            <span class="api-path">/register-domain</span>
+          </div>
+          <p class="api-description">Register a new free InfinityFree subdomain.</p>
+          <div class="api-example">
+            <h4>Request Body (application/x-www-form-urlencoded or application/json):</h4>
+            <pre>{
+  "accountId": "if0_12345678",
+  "subdomain": "mysite",
+  "domainExtension": "infinityfreeapp.com"
+}</pre>
+          </div>
+          <div class="api-example">
+            <h4>Response:</h4>
+            <pre>Returns HTML page with success or error message</pre>
+          </div>
+        </div>
+
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method post">POST</span>
+            <span class="api-path">/register-subdomain</span>
+          </div>
+          <p class="api-description">Register a subdomain under your custom domain that's already added to InfinityFree.</p>
+          <div class="api-example">
+            <h4>Request Body:</h4>
+            <pre>{
+  "accountId": "if0_12345678",
+  "parentDomain": "example.com",
+  "subdomain": "blog"
+}</pre>
+          </div>
+          <div class="api-example">
+            <h4>Response:</h4>
+            <pre>Returns HTML page with success or error message
+Creates: blog.example.com</pre>
+          </div>
+        </div>
+
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method post">POST</span>
+            <span class="api-path">/create-cname</span>
+          </div>
+          <p class="api-description">Create a CNAME DNS record for a domain.</p>
+          <div class="api-example">
+            <h4>Request Body:</h4>
+            <pre>{
+  "accountId": "if0_12345678",
+  "domain": "example.com",
+  "host": "www",
+  "target": "target.example.com"
+}</pre>
+          </div>
+          <div class="api-example">
+            <h4>Response:</h4>
+            <pre>Returns HTML page with success or error message</pre>
+          </div>
+        </div>
+
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method post">POST</span>
+            <span class="api-path">/verify-auth</span>
+          </div>
+          <p class="api-description">Verify that your InfinityFree authentication cookies are valid and working.</p>
+          <div class="api-example">
+            <h4>Response:</h4>
+            <pre>Returns HTML page with authentication status</pre>
+          </div>
+        </div>
+      </div>
+
+      <div id="domain-tools" class="tab-content">
+        <div class="alert info">
+          <strong>Note:</strong> Account ID is optional if you have DEFAULT_ACCOUNT_ID configured in your .env file.
+        </div>
+
+        <div class="section">
+          <h2>Register Free InfinityFree Subdomain</h2>
+          <p>Create a new subdomain using InfinityFree's free domain extensions.</p>
+          
+          <div class="form-group">
+            <label for="domain_accountId">Account ID (optional if DEFAULT_ACCOUNT_ID is set)</label>
+            <input type="text" id="domain_accountId" placeholder="if0_12345678">
+          </div>
+
+          <div class="form-group">
+            <label for="domain_subdomain">Subdomain Name</label>
+            <input type="text" id="domain_subdomain" placeholder="mysite">
+          </div>
+
+          <div class="form-group">
+            <label for="domain_extension">Domain Extension</label>
+            <select id="domain_extension">
+              <option value="">Click "Load Extensions" to see available options</option>
+            </select>
+          </div>
+
+          <button onclick="loadExtensions()">Load Extensions</button>
+          <button onclick="registerDomain()" class="secondary">Register Domain</button>
+          <span id="domainStatus" class="status-message"></span>
+        </div>
+
+        <div class="section">
+          <h2>Register Custom Subdomain</h2>
+          <p>Create a subdomain under your own custom domain that's already added to InfinityFree.</p>
+          
+          <div class="form-group">
+            <label for="subdomain_accountId">Account ID (optional if DEFAULT_ACCOUNT_ID is set)</label>
+            <input type="text" id="subdomain_accountId" placeholder="if0_12345678">
+          </div>
+
+          <div class="form-group">
+            <label for="parent_domain">Parent Domain</label>
+            <input type="text" id="parent_domain" placeholder="example.com">
+          </div>
+
+          <div class="form-group">
+            <label for="custom_subdomain">Subdomain Name</label>
+            <input type="text" id="custom_subdomain" placeholder="blog">
+          </div>
+
+          <button onclick="registerSubdomain()">Register Subdomain</button>
+          <span id="subdomainStatus" class="status-message"></span>
+        </div>
+      </div>
+
+      <div id="dns-tools" class="tab-content">
+        <div class="alert info">
+          <strong>Note:</strong> Account ID is optional if you have DEFAULT_ACCOUNT_ID configured in your .env file.
+        </div>
+
+        <div class="section">
+          <h2>Create CNAME Record</h2>
+          <p>Add a CNAME DNS record to point a subdomain to another domain.</p>
+          
+          <div class="form-group">
+            <label for="cname_accountId">Account ID (optional if DEFAULT_ACCOUNT_ID is set)</label>
+            <input type="text" id="cname_accountId" placeholder="if0_12345678">
+          </div>
+
+          <div class="form-group">
+            <label for="cname_domain">Domain</label>
+            <input type="text" id="cname_domain" placeholder="example.com">
+          </div>
+
+          <div class="form-group">
+            <label for="cname_host">Host/Subdomain</label>
+            <input type="text" id="cname_host" placeholder="www">
+          </div>
+
+          <div class="form-group">
+            <label for="cname_target">Target</label>
+            <input type="text" id="cname_target" placeholder="target.example.com">
+          </div>
+
+          <button onclick="createCNAME()">Create CNAME Record</button>
+          <span id="cnameStatus" class="status-message"></span>
+        </div>
+
+        <div class="section">
+          <h2>View DNS Records</h2>
+          <p>View existing DNS records for a domain.</p>
+          
+          <div class="form-group">
+            <label for="dns_accountId">Account ID (optional if DEFAULT_ACCOUNT_ID is set)</label>
+            <input type="text" id="dns_accountId" placeholder="if0_12345678">
+          </div>
+
+          <div class="form-group">
+            <label for="dns_domain">Domain</label>
+            <input type="text" id="dns_domain" placeholder="example.com">
+          </div>
+
+          <button onclick="getDNSRecords()">Load DNS Records</button>
+          <div id="dnsRecords" style="margin-top: 20px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

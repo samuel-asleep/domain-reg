@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const path = require('path');
 const InfinityFreeAuth = require('./src/authService');
 
 const app = express();
@@ -7,218 +8,204 @@ const PORT = 5000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 const authService = new InfinityFreeAuth();
+const DEFAULT_ACCOUNT_ID = process.env.DEFAULT_ACCOUNT_ID;
 
-app.get('/', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>InfinityFree Automation</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          max-width: 800px;
-          margin: 50px auto;
-          padding: 20px;
-          background-color: #f5f5f5;
-        }
-        .container {
-          background: white;
-          padding: 30px;
-          border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        h1 {
-          color: #333;
-          border-bottom: 3px solid #007bff;
-          padding-bottom: 10px;
-        }
-        .test-section {
-          margin: 20px 0;
-          padding: 20px;
-          background: #f8f9fa;
-          border-radius: 4px;
-        }
-        button {
-          background-color: #007bff;
-          color: white;
-          padding: 12px 24px;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 16px;
-        }
-        button:hover {
-          background-color: #0056b3;
-        }
-        .result {
-          margin-top: 20px;
-          padding: 15px;
-          border-radius: 4px;
-        }
-        .success {
-          background-color: #d4edda;
-          color: #155724;
-          border: 1px solid #c3e6cb;
-        }
-        .error {
-          background-color: #f8d7da;
-          color: #721c24;
-          border: 1px solid #f5c6cb;
-        }
-        input, select {
-          width: 100%;
-          padding: 8px;
-          margin: 10px 0;
-          box-sizing: border-box;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <h1>InfinityFree Automation</h1>
-        
-        <div class="test-section">
-          <h2>Verify Authentication</h2>
-          <p>Click the button below to verify that your cookies are working:</p>
-          <form action="/verify-auth" method="POST">
-            <button type="submit">Verify Authentication</button>
-          </form>
-        </div>
+function getAccountId(requestAccountId) {
+  if (requestAccountId) {
+    return requestAccountId;
+  }
+  
+  if (!DEFAULT_ACCOUNT_ID) {
+    throw new Error('Account ID not provided and DEFAULT_ACCOUNT_ID not set in environment');
+  }
+  
+  return DEFAULT_ACCOUNT_ID;
+}
 
-        <div class="test-section">
-          <h2>View Accounts & Domains</h2>
-          <p>Get a list of your hosting accounts and domains:</p>
-          <a href="/accounts" target="_blank"><button type="button">View Accounts (JSON)</button></a>
-        </div>
+app.post('/api/verify-auth', async (req, res) => {
+  try {
+    console.log('Verifying authentication...');
+    await authService.initializeFromEnv();
+    const result = await authService.verifyAuthentication();
+    
+    res.json({ 
+      success: true, 
+      message: result.message || 'Authentication successful'
+    });
+  } catch (error) {
+    res.status(401).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
 
-        <div class="test-section">
-          <h2>Register Free InfinityFree Subdomain</h2>
-          <form action="/register-domain" method="POST">
-            <label for="domain_accountId">Account ID:</label><br>
-            <input type="text" id="domain_accountId" name="accountId" placeholder="if0_40106205" required><br>
-            
-            <label for="subdomain">Subdomain Name:</label><br>
-            <input type="text" id="subdomain" name="subdomain" placeholder="mysite" required><br>
-            
-            <label for="domainExtension">Domain Extension:</label><br>
-            <select id="domainExtension" name="domainExtension" required>
-              <option value="">Loading extensions...</option>
-            </select><br>
-            <button type="button" onclick="loadExtensions()" id="loadExtBtn">Load Available Extensions</button>
-            <span id="extStatus" style="margin-left: 10px;"></span><br><br>
-            
-            <button type="submit">Register Domain</button>
-          </form>
-        </div>
+app.get('/accounts', async (req, res) => {
+  try {
+    console.log('Getting accounts...');
+    const accounts = await authService.getAccounts();
+    
+    res.json({ success: true, accounts });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
-        <div class="test-section">
-          <h2>Register Custom Subdomain</h2>
-          <p><small>Note: For subdomains of your own custom domain that you've already added to InfinityFree</small></p>
-          <form action="/register-subdomain" method="POST">
-            <label for="sub_accountId">Account ID:</label><br>
-            <input type="text" id="sub_accountId" name="accountId" placeholder="if0_40106205" required><br>
-            
-            <label for="parentDomain">Parent Domain:</label><br>
-            <input type="text" id="parentDomain" name="parentDomain" placeholder="example.com" required><br>
-            
-            <label for="subdomainName">Subdomain Name:</label><br>
-            <input type="text" id="subdomainName" name="subdomain" placeholder="blog" required><br>
-            
-            <button type="submit">Register Subdomain</button>
-          </form>
-        </div>
+app.get('/accounts/:accountId/domains', async (req, res) => {
+  try {
+    console.log(`Getting domains for account ${req.params.accountId}...`);
+    const domains = await authService.getDomains(req.params.accountId);
+    
+    res.json({ success: true, domains });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
-        <div class="test-section">
-          <h2>Create CNAME Record</h2>
-          <form action="/create-cname" method="POST">
-            <label for="accountId">Account ID:</label><br>
-            <input type="text" id="accountId" name="accountId" placeholder="if0_40106205" required><br>
-            
-            <label for="cname_domain">Domain:</label><br>
-            <input type="text" id="cname_domain" name="domain" placeholder="scrapes.xo.je" required><br>
-            
-            <label for="host">Host/Name (subdomain):</label><br>
-            <input type="text" id="host" name="host" placeholder="www" required><br>
-            
-            <label for="target">Target/Value:</label><br>
-            <input type="text" id="target" name="target" placeholder="target.example.com" required><br>
-            
-            <button type="submit">Create CNAME Record</button>
-          </form>
-        </div>
+app.get('/accounts/:accountId/domains/:domain/dns', async (req, res) => {
+  try {
+    console.log(`Getting DNS records for ${req.params.domain}...`);
+    const records = await authService.getDNSRecords(req.params.accountId, req.params.domain);
+    
+    res.json({ success: true, records });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
-        <div class="test-section">
-          <h2>API Endpoints</h2>
-          <p>Available API endpoints for programmatic access:</p>
-          <ul>
-            <li><code>GET /accounts</code> - List all hosting accounts</li>
-            <li><code>GET /accounts/:accountId/domains</code> - List domains for an account</li>
-            <li><code>GET /accounts/:accountId/domains/:domain/dns</code> - List DNS records</li>
-            <li><code>GET /accounts/:accountId/subdomain-extensions</code> - Get available subdomain extensions</li>
-            <li><code>POST /register-domain</code> - Register a free InfinityFree subdomain</li>
-            <li><code>POST /register-subdomain</code> - Register a custom subdomain</li>
-            <li><code>POST /create-cname</code> - Create a CNAME record</li>
-          </ul>
-        </div>
-      </div>
-      
-      <script>
-        async function loadExtensions() {
-          const accountId = document.getElementById('domain_accountId').value;
-          const select = document.getElementById('domainExtension');
-          const btn = document.getElementById('loadExtBtn');
-          const status = document.getElementById('extStatus');
-          
-          if (!accountId) {
-            status.textContent = '⚠ Please enter Account ID first';
-            status.style.color = 'orange';
-            return;
-          }
-          
-          btn.disabled = true;
-          btn.textContent = 'Loading...';
-          status.textContent = '⏳ Fetching extensions...';
-          status.style.color = 'blue';
-          select.innerHTML = '<option value="">Loading...</option>';
-          
-          try {
-            const response = await fetch(\`/accounts/\${accountId}/subdomain-extensions\`);
-            const data = await response.json();
-            
-            if (data.success && data.extensions && data.extensions.length > 0) {
-              select.innerHTML = '';
-              data.extensions.forEach(ext => {
-                const option = document.createElement('option');
-                option.value = ext.value;
-                option.textContent = ext.label || ext.value;
-                select.appendChild(option);
-              });
-              status.textContent = \`✓ Loaded \${data.extensions.length} extensions\`;
-              status.style.color = 'green';
-            } else {
-              select.innerHTML = '<option value="">No extensions found</option>';
-              status.textContent = '⚠ No extensions found';
-              status.style.color = 'orange';
-            }
-          } catch (error) {
-            console.error('Error loading extensions:', error);
-            select.innerHTML = '<option value="">Error loading</option>';
-            status.textContent = '✗ Error: ' + error.message;
-            status.style.color = 'red';
-          } finally {
-            btn.disabled = false;
-            btn.textContent = 'Load Available Extensions';
-          }
-        }
-      </script>
-    </body>
-    </html>
-  `);
+app.get('/api/subdomain-extensions', async (req, res) => {
+  try {
+    const accountId = getAccountId(req.query.accountId);
+    console.log(`Getting available subdomain extensions for account ${accountId}...`);
+    const result = await authService.getAvailableSubdomainExtensions(accountId);
+    
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/accounts/:accountId/subdomain-extensions', async (req, res) => {
+  try {
+    console.log(`Getting available subdomain extensions for account ${req.params.accountId}...`);
+    const result = await authService.getAvailableSubdomainExtensions(req.params.accountId);
+    
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/register-domain', async (req, res) => {
+  try {
+    const accountId = getAccountId(req.body.accountId);
+    const { subdomain, domainExtension } = req.body;
+    
+    if (!subdomain || !domainExtension) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing required fields: subdomain, domainExtension' 
+      });
+    }
+    
+    console.log(`Registering domain ${subdomain}.${domainExtension} for account ${accountId}...`);
+    const result = await authService.registerDomain(accountId, subdomain, domainExtension);
+    
+    res.json({ 
+      success: true, 
+      message: result.message,
+      domain: `${subdomain}.${domainExtension}`
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
+app.post('/api/register-subdomain', async (req, res) => {
+  try {
+    const accountId = getAccountId(req.body.accountId);
+    const { parentDomain, subdomain } = req.body;
+    
+    if (!parentDomain || !subdomain) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing required fields: parentDomain, subdomain' 
+      });
+    }
+    
+    console.log(`Registering subdomain ${subdomain}.${parentDomain} for account ${accountId}...`);
+    const result = await authService.registerSubdomain(accountId, parentDomain, subdomain);
+    
+    res.json({ 
+      success: true, 
+      message: result.message,
+      domain: `${subdomain}.${parentDomain}`
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
+app.post('/api/create-cname', async (req, res) => {
+  try {
+    const accountId = getAccountId(req.body.accountId);
+    const { domain, host, target } = req.body;
+    
+    if (!domain || !host || !target) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing required fields: domain, host, target' 
+      });
+    }
+    
+    console.log(`Creating CNAME record for ${host}.${domain} -> ${target}...`);
+    const result = await authService.createCNAMERecord(accountId, domain, host, target);
+    
+    res.json({ 
+      success: true, 
+      message: result.message
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
+app.get('/api/dns-records', async (req, res) => {
+  try {
+    const accountId = getAccountId(req.query.accountId);
+    const { domain } = req.query;
+    
+    if (!domain) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing required parameter: domain' 
+      });
+    }
+    
+    console.log(`Getting DNS records for ${domain} in account ${accountId}...`);
+    const records = await authService.getDNSRecords(accountId, domain);
+    
+    res.json({ success: true, records });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
 });
 
 app.post('/verify-auth', async (req, res) => {
@@ -391,6 +378,66 @@ app.post('/register-subdomain', async (req, res) => {
   }
 });
 
+app.post('/create-cname', async (req, res) => {
+  try {
+    console.log('Creating CNAME record...');
+    const { accountId, domain, host, target } = req.body;
+    
+    if (!accountId || !domain || !host || !target) {
+      throw new Error('Missing required fields: accountId, domain, host, target');
+    }
+    
+    const result = await authService.createCNAMERecord(accountId, domain, host, target);
+    
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>CNAME Creation Result</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+          .success { background-color: #d4edda; color: #155724; padding: 20px; border-radius: 4px; border: 1px solid #c3e6cb; }
+          a { color: #007bff; text-decoration: none; }
+          a:hover { text-decoration: underline; }
+        </style>
+      </head>
+      <body>
+        <div class="success">
+          <h2>✓ CNAME Record Created!</h2>
+          <p>${result.message}</p>
+          <p>Domain: ${domain}</p>
+          <p>Host: ${host}</p>
+          <p>Target: ${target}</p>
+          <p><a href="/">← Back to Home</a></p>
+        </div>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>CNAME Creation Result</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+          .error { background-color: #f8d7da; color: #721c24; padding: 20px; border-radius: 4px; border: 1px solid #f5c6cb; }
+          a { color: #007bff; text-decoration: none; }
+          a:hover { text-decoration: underline; }
+        </style>
+      </head>
+      <body>
+        <div class="error">
+          <h2>✗ CNAME Creation Failed</h2>
+          <p>${error.message}</p>
+          <p><a href="/">← Back to Home</a></p>
+        </div>
+      </body>
+      </html>
+    `);
+  }
+});
+
 app.get('/test-forms', async (req, res) => {
   try {
     const accounts = await authService.getAccounts();
@@ -511,112 +558,11 @@ app.get('/test-forms', async (req, res) => {
   }
 });
 
-app.get('/accounts', async (req, res) => {
-  try {
-    console.log('Getting accounts...');
-    const accounts = await authService.getAccounts();
-    
-    res.json({ success: true, accounts });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.get('/accounts/:accountId/domains', async (req, res) => {
-  try {
-    console.log(`Getting domains for account ${req.params.accountId}...`);
-    const domains = await authService.getDomains(req.params.accountId);
-    
-    res.json({ success: true, domains });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.get('/accounts/:accountId/domains/:domain/dns', async (req, res) => {
-  try {
-    console.log(`Getting DNS records for ${req.params.domain}...`);
-    const records = await authService.getDNSRecords(req.params.accountId, req.params.domain);
-    
-    res.json({ success: true, records });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.get('/accounts/:accountId/subdomain-extensions', async (req, res) => {
-  try {
-    console.log(`Getting available subdomain extensions for account ${req.params.accountId}...`);
-    const result = await authService.getAvailableSubdomainExtensions(req.params.accountId);
-    
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.post('/create-cname', async (req, res) => {
-  try {
-    console.log('Creating CNAME record...');
-    const { accountId, domain, host, target } = req.body;
-    
-    if (!accountId || !domain || !host || !target) {
-      throw new Error('Missing required fields: accountId, domain, host, target');
-    }
-    
-    const result = await authService.createCNAMERecord(accountId, domain, host, target);
-    
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>CNAME Creation Result</title>
-        <style>
-          body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
-          .success { background-color: #d4edda; color: #155724; padding: 20px; border-radius: 4px; border: 1px solid #c3e6cb; }
-          a { color: #007bff; text-decoration: none; }
-          a:hover { text-decoration: underline; }
-        </style>
-      </head>
-      <body>
-        <div class="success">
-          <h2>✓ CNAME Record Created!</h2>
-          <p>${result.message}</p>
-          <p>Domain: ${domain}</p>
-          <p>Host: ${host}</p>
-          <p>Target: ${target}</p>
-          <p><a href="/">← Back to Home</a></p>
-        </div>
-      </body>
-      </html>
-    `);
-  } catch (error) {
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>CNAME Creation Result</title>
-        <style>
-          body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
-          .error { background-color: #f8d7da; color: #721c24; padding: 20px; border-radius: 4px; border: 1px solid #f5c6cb; }
-          a { color: #007bff; text-decoration: none; }
-          a:hover { text-decoration: underline; }
-        </style>
-      </head>
-      <body>
-        <div class="error">
-          <h2>✗ CNAME Creation Failed</h2>
-          <p>${error.message}</p>
-          <p><a href="/">← Back to Home</a></p>
-        </div>
-      </body>
-      </html>
-    `);
-  }
-});
-
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
   console.log('InfinityFree Automation App Ready');
   console.log('Using cookie-based authentication');
+  if (DEFAULT_ACCOUNT_ID) {
+    console.log(`Default Account ID configured: ${DEFAULT_ACCOUNT_ID}`);
+  }
 });
