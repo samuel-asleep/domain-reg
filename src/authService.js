@@ -423,63 +423,52 @@ class InfinityFreeAuth {
       console.log(`Navigating to: ${createUrl}`);
       await page.goto(createUrl, { waitUntil: 'networkidle0' });
       
+      console.log('Checking for privacy popup...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const popupDismissed = await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const confirmButton = buttons.find(btn => 
+          btn.textContent.toUpperCase().includes('CONFIRM')
+        );
+        if (confirmButton) {
+          confirmButton.click();
+          return true;
+        }
+        return false;
+      });
+      
+      if (popupDismissed) {
+        console.log('Privacy popup dismissed');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } else {
+        console.log('No privacy popup found');
+      }
+      
       console.log('Clicking subdomain button...');
       await page.waitForSelector('button[wire\\:click="selectDomainType(\'subdomain\')"]', { timeout: 10000 });
-      await page.click('button[wire\\:click="selectDomainType(\'subdomain\')"]');
+      
+      await Promise.all([
+        page.click('button[wire\\:click="selectDomainType(\'subdomain\')"]'),
+        page.waitForResponse(response => response.url().includes('/livewire/message/'), { timeout: 15000 }).catch(() => null)
+      ]);
       
       console.log('Waiting for form to load...');
-      await page.waitForTimeout(2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       console.log('Extracting available extensions...');
-      const pageInfo = await page.evaluate(() => {
-        const selectElements = document.querySelectorAll('select');
-        console.log('Found select elements:', selectElements.length);
-        
-        let selectElement = null;
-        
-        for (const select of selectElements) {
-          if (select.options && select.options.length > 0) {
-            const firstOption = select.options[0];
-            if (firstOption && (firstOption.value.includes('.') || firstOption.textContent.includes('.'))) {
-              selectElement = select;
-              break;
-            }
-          }
-        }
-        
-        if (!selectElement && selectElements.length > 0) {
-          selectElement = selectElements[0];
-        }
-        
-        if (!selectElement) {
-          return {
-            extensions: [],
-            debug: {
-              selectCount: selectElements.length,
-              bodySnippet: document.body?.textContent?.substring(0, 500) || 'No body'
-            }
-          };
-        }
+      const extensions = await page.evaluate(() => {
+        const selectElement = document.querySelector('select');
+        if (!selectElement) return [];
         
         const options = Array.from(selectElement.options);
-        const extensions = options
+        return options
           .filter(option => option.value && option.value.trim() !== '')
           .map(option => ({
             value: option.value,
             label: option.textContent.trim()
           }));
-        
-        return {
-          extensions,
-          debug: {
-            selectCount: selectElements.length,
-            optionsCount: options.length
-          }
-        };
       });
-      
-      const extensions = pageInfo.extensions;
-      console.log('Debug info:', JSON.stringify(pageInfo.debug, null, 2));
       
       console.log(`✓ Found ${extensions.length} available subdomain extensions`);
       return { success: true, extensions };
@@ -527,6 +516,26 @@ class InfinityFreeAuth {
       const createUrl = `${this.baseURL}/accounts/${accountId}/domains/create`;
       console.log(`Navigating to: ${createUrl}`);
       await page.goto(createUrl, { waitUntil: 'networkidle0' });
+      
+      console.log('Checking for privacy popup...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const popupDismissed = await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const confirmButton = buttons.find(btn => 
+          btn.textContent.toUpperCase().includes('CONFIRM')
+        );
+        if (confirmButton) {
+          confirmButton.click();
+          return true;
+        }
+        return false;
+      });
+      
+      if (popupDismissed) {
+        console.log('Privacy popup dismissed');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
       
       console.log('Clicking subdomain button...');
       await page.waitForSelector('button[wire\\:click="selectDomainType(\'subdomain\')"]', { timeout: 10000 });
@@ -631,6 +640,26 @@ class InfinityFreeAuth {
       const createUrl = `${this.baseURL}/accounts/${accountId}/domains/create`;
       console.log(`Navigating to: ${createUrl}`);
       await page.goto(createUrl, { waitUntil: 'networkidle0' });
+      
+      console.log('Checking for privacy popup...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const popupDismissed = await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const confirmButton = buttons.find(btn => 
+          btn.textContent.toUpperCase().includes('CONFIRM')
+        );
+        if (confirmButton) {
+          confirmButton.click();
+          return true;
+        }
+        return false;
+      });
+      
+      if (popupDismissed) {
+        console.log('Privacy popup dismissed');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
       
       console.log('Clicking custom domain button...');
       await page.waitForSelector('button[wire\\:click="selectDomainType(\'customDomain\')"]', { timeout: 10000 });
