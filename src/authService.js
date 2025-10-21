@@ -199,11 +199,33 @@ class InfinityFreeAuth {
           cells.push($(cell).text().trim());
         });
         
+        const deleteForm = $(row).find('form[method="post"]');
+        let deleteUrl = null;
+        let recordType = null;
+        
+        if (deleteForm.length > 0) {
+          const action = deleteForm.attr('action');
+          if (action) {
+            deleteUrl = action;
+            if (action.includes('/cnameRecords/')) {
+              recordType = 'CNAME';
+            } else if (action.includes('/mxRecords/')) {
+              recordType = 'MX';
+            } else if (action.includes('/txtRecords/')) {
+              recordType = 'TXT';
+            } else if (action.includes('/aRecords/')) {
+              recordType = 'A';
+            }
+          }
+        }
+        
         if (cells.length >= 3) {
           records.push({
             domain: cells[0],
             type: cells[1],
-            target: cells[2]
+            target: cells[2],
+            deleteUrl: deleteUrl,
+            recordType: recordType
           });
         }
       });
