@@ -38,14 +38,16 @@ async function checkDefaultAccount() {
       accountFields.forEach(fieldId => {
         const field = document.getElementById(fieldId);
         if (field) {
-          field.value = '(Using default account ID)';
+          field.value = '';
+          field.placeholder = '(Using default account ID from env)';
           field.disabled = true;
           field.style.background = '#e9ecef';
           field.style.cursor = 'not-allowed';
+          field.dataset.usingDefault = 'true';
         }
       });
       
-      console.log('✓ Default account ID is configured - account fields auto-filled and disabled');
+      console.log('✓ Default account ID is configured - account fields disabled');
     }
   } catch (error) {
     console.error('Error checking default account:', error);
@@ -112,12 +114,13 @@ async function loadExtensions() {
   const select = document.getElementById('domain_extension');
   const accountIdField = document.getElementById('domain_accountId');
   const accountId = accountIdField.value.trim();
+  const isUsingDefault = accountIdField.dataset.usingDefault === 'true';
   
   setStatus('domainStatus', 'Loading extensions...', 'info');
   select.innerHTML = '<option value="">Loading...</option>';
   
   try {
-    const url = (accountId && !accountId.includes('default'))
+    const url = (accountId && !isUsingDefault)
       ? `/api/subdomain-extensions?accountId=${encodeURIComponent(accountId)}`
       : '/api/subdomain-extensions';
     const response = await fetch(url);
@@ -145,6 +148,7 @@ async function loadExtensions() {
 async function registerDomain() {
   const accountIdField = document.getElementById('domain_accountId');
   const accountId = accountIdField.value.trim();
+  const isUsingDefault = accountIdField.dataset.usingDefault === 'true';
   const subdomain = document.getElementById('domain_subdomain').value.trim();
   const extension = document.getElementById('domain_extension').value;
   
@@ -161,7 +165,7 @@ async function registerDomain() {
       domainExtension: extension
     };
     
-    if (accountId && !accountId.includes('default')) {
+    if (accountId && !isUsingDefault) {
       requestBody.accountId = accountId;
     }
     
@@ -189,6 +193,7 @@ async function registerDomain() {
 async function registerSubdomain() {
   const accountIdField = document.getElementById('subdomain_accountId');
   const accountId = accountIdField.value.trim();
+  const isUsingDefault = accountIdField.dataset.usingDefault === 'true';
   const parentDomain = document.getElementById('parent_domain').value.trim();
   const subdomain = document.getElementById('custom_subdomain').value.trim();
   
@@ -205,7 +210,7 @@ async function registerSubdomain() {
       subdomain
     };
     
-    if (accountId && !accountId.includes('default')) {
+    if (accountId && !isUsingDefault) {
       requestBody.accountId = accountId;
     }
     
@@ -234,6 +239,7 @@ async function registerSubdomain() {
 async function createCNAME() {
   const accountIdField = document.getElementById('cname_accountId');
   const accountId = accountIdField.value.trim();
+  const isUsingDefault = accountIdField.dataset.usingDefault === 'true';
   const domain = document.getElementById('cname_domain').value.trim();
   const host = document.getElementById('cname_host').value.trim();
   const target = document.getElementById('cname_target').value.trim();
@@ -252,7 +258,7 @@ async function createCNAME() {
       target
     };
     
-    if (accountId && !accountId.includes('default')) {
+    if (accountId && !isUsingDefault) {
       requestBody.accountId = accountId;
     }
     
@@ -280,7 +286,9 @@ async function createCNAME() {
 }
 
 async function getDNSRecords() {
-  const accountId = document.getElementById('dns_accountId').value.trim();
+  const accountIdField = document.getElementById('dns_accountId');
+  const accountId = accountIdField.value.trim();
+  const isUsingDefault = accountIdField.dataset.usingDefault === 'true';
   const domain = document.getElementById('dns_domain').value.trim();
   const container = document.getElementById('dnsRecords');
   
@@ -292,7 +300,7 @@ async function getDNSRecords() {
   container.innerHTML = '<p style="color: #666;">Loading DNS records...</p>';
   
   try {
-    const url = accountId && !accountId.includes('default')
+    const url = (accountId && !isUsingDefault)
       ? `/api/dns-records?domain=${encodeURIComponent(domain)}&accountId=${encodeURIComponent(accountId)}`
       : `/api/dns-records?domain=${encodeURIComponent(domain)}`;
     const response = await fetch(url);
@@ -347,14 +355,16 @@ async function deleteDNSRecord(domain, deleteUrl, deleteToken, recordIndex) {
   }
   
   try {
-    const accountId = document.getElementById('dns_accountId').value.trim();
+    const accountIdField = document.getElementById('dns_accountId');
+    const accountId = accountIdField.value.trim();
+    const isUsingDefault = accountIdField.dataset.usingDefault === 'true';
     const requestBody = {
       domain,
       deleteUrl,
       deleteToken
     };
     
-    if (accountId && !accountId.includes('default')) {
+    if (accountId && !isUsingDefault) {
       requestBody.accountId = accountId;
     }
     
