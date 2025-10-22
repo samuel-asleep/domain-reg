@@ -15,6 +15,17 @@ app.get('/favicon.ico', (req, res) => res.status(204).end());
 const authService = new InfinityFreeAuth();
 const DEFAULT_ACCOUNT_ID = process.env.DEFAULT_ACCOUNT_ID;
 
+const deleteUrlMap = new Map();
+const crypto = require('crypto');
+
+setInterval(() => {
+  for (const [key, value] of deleteUrlMap.entries()) {
+    if (Date.now() - value.createdAt > 3600000) {
+      deleteUrlMap.delete(key);
+    }
+  }
+}, 600000);
+
 function getAccountId(requestAccountId) {
   if (requestAccountId) {
     return requestAccountId;
@@ -25,6 +36,12 @@ function getAccountId(requestAccountId) {
   }
   
   return DEFAULT_ACCOUNT_ID;
+}
+
+function createOpaqueId(deleteUrl, domain) {
+  const hash = crypto.createHash('sha256').update(`${deleteUrl}-${Date.now()}`).digest('hex').substring(0, 16);
+  deleteUrlMap.set(hash, { deleteUrl, domain, createdAt: Date.now() });
+  return hash;
 }
 
 app.post('/api/verify-auth', async (req, res) => {
@@ -199,7 +216,14 @@ app.get('/api/dns-records', async (req, res) => {
     console.log(`Getting DNS records for ${domain} in account ${accountId}...`);
     const records = await authService.getDNSRecords(accountId, domain);
     
-    res.json({ success: true, records });
+    const sanitizedRecords = records.map(record => ({
+      domain: record.domain,
+      type: record.type,
+      target: record.target,
+      deleteId: record.deleteUrl ? createOpaqueId(record.deleteUrl, domain) : null
+    }));
+    
+    res.json({ success: true, records: sanitizedRecords });
   } catch (error) {
     res.status(500).json({ 
       success: false, 
@@ -211,17 +235,29 @@ app.get('/api/dns-records', async (req, res) => {
 app.delete('/api/dns-records', async (req, res) => {
   try {
     const accountId = getAccountId(req.body.accountId);
-    const { domain, deleteUrl } = req.body;
+    const { deleteId } = req.body;
     
-    if (!domain || !deleteUrl) {
+    if (!deleteId) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Missing required fields: domain, deleteUrl' 
+        message: 'Missing required field: deleteId' 
       });
     }
     
+    const recordData = deleteUrlMap.get(deleteId);
+    if (!recordData) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid or expired delete ID' 
+      });
+    }
+    
+    const { deleteUrl, domain } = recordData;
+    
     console.log(`Deleting DNS record for ${domain}...`);
     const result = await authService.deleteDNSRecord(accountId, domain, deleteUrl);
+    
+    deleteUrlMap.delete(deleteId);
     
     res.json({ 
       success: true, 

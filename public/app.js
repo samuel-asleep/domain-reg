@@ -246,13 +246,23 @@ async function getDNSRecords() {
       html += '<th style="padding: 10px; text-align: left; border-bottom: 2px solid #dee2e6;">Domain</th>';
       html += '<th style="padding: 10px; text-align: left; border-bottom: 2px solid #dee2e6;">Type</th>';
       html += '<th style="padding: 10px; text-align: left; border-bottom: 2px solid #dee2e6;">Target</th>';
+      html += '<th style="padding: 10px; text-align: left; border-bottom: 2px solid #dee2e6;">Actions</th>';
       html += '</tr></thead><tbody>';
       
-      data.records.forEach(record => {
+      data.records.forEach((record, index) => {
         html += `<tr style="border-bottom: 1px solid #dee2e6;">
           <td style="padding: 10px;"><code>${record.domain}</code></td>
           <td style="padding: 10px;"><span style="background: #e7f5ff; color: #0066cc; padding: 4px 8px; border-radius: 4px; font-weight: 600;">${record.type}</span></td>
           <td style="padding: 10px;"><code>${record.target}</code></td>
+          <td style="padding: 10px;">`;
+        
+        if (record.deleteId) {
+          html += `<button onclick="deleteDNSRecord('${record.deleteId}')" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">Delete</button>`;
+        } else {
+          html += '<span style="color: #999;">N/A</span>';
+        }
+        
+        html += `</td>
         </tr>`;
       });
       
@@ -263,5 +273,34 @@ async function getDNSRecords() {
     }
   } catch (error) {
     container.innerHTML = `<p style="color: #dc3545;">Error: ${error.message}</p>`;
+  }
+}
+
+async function deleteDNSRecord(deleteId) {
+  if (!confirm('Are you sure you want to delete this DNS record?')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/dns-records', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        deleteId
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      alert('DNS record deleted successfully!');
+      getDNSRecords();
+    } else {
+      alert('Failed to delete DNS record: ' + data.message);
+    }
+  } catch (error) {
+    alert('Error deleting DNS record: ' + error.message);
   }
 }
