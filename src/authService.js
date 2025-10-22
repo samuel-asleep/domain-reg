@@ -15,6 +15,7 @@ class InfinityFreeAuth {
     }));
     this.isAuthenticated = false;
     this.baseURL = 'https://dash.infinityfree.com';
+    this.cachedExtensions = null;
   }
 
   parseCookieString(cookieString) {
@@ -483,6 +484,11 @@ class InfinityFreeAuth {
   async getAvailableSubdomainExtensions(accountId) {
     await this.ensureAuthenticated();
     
+    if (this.cachedExtensions) {
+      console.log(`✓ Using cached extensions (${this.cachedExtensions.length} extensions)`);
+      return { success: true, extensions: this.cachedExtensions };
+    }
+    
     const puppeteer = require('puppeteer-core');
     let browser;
     
@@ -581,6 +587,8 @@ class InfinityFreeAuth {
       });
       
       console.log(`✓ Found ${extensions.length} available subdomain extensions`);
+      this.cachedExtensions = extensions;
+      console.log('✓ Extensions cached for future requests');
       return { success: true, extensions };
       
     } catch (error) {
