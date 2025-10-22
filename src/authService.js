@@ -678,7 +678,7 @@ class InfinityFreeAuth {
         }, { timeout: 30000 })
       ]);
       
-      await page.waitForTimeout(3000);
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
       const currentUrl = page.url();
       console.log('Current URL after submission:', currentUrl);
@@ -803,7 +803,7 @@ class InfinityFreeAuth {
         }, { timeout: 30000 })
       ]);
       
-      await page.waitForTimeout(3000);
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
       const currentUrl = page.url();
       console.log('Current URL after submission:', currentUrl);
@@ -837,6 +837,175 @@ class InfinityFreeAuth {
       
     } catch (error) {
       console.error('Error registering subdomain:', error.message);
+      throw error;
+    } finally {
+      if (browser) {
+        await browser.close();
+      }
+    }
+  }
+
+  async deleteDomain(accountId, domain) {
+    await this.ensureAuthenticated();
+    
+    const puppeteer = require('puppeteer-core');
+    let browser;
+    
+    try {
+      console.log(`Deleting domain: ${domain} from account ${accountId}`);
+      
+      browser = await puppeteer.launch({
+        executablePath: process.env.CHROMIUM_PATH || process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+      });
+      
+      const page = await browser.newPage();
+      
+      const cookies = await this.jar.getCookies(this.baseURL);
+      const puppeteerCookies = cookies.map(cookie => ({
+        name: cookie.key,
+        value: cookie.value,
+        domain: cookie.domain,
+        path: cookie.path,
+        expires: cookie.expires === 'Infinity' ? -1 : Math.floor(new Date(cookie.expires).getTime() / 1000),
+        httpOnly: cookie.httpOnly,
+        secure: cookie.secure
+      }));
+      
+      await page.setCookie(...puppeteerCookies);
+      
+      const accountUrl = `${this.baseURL}/accounts/${accountId}`;
+      console.log(`Navigating to: ${accountUrl}`);
+      await page.goto(accountUrl, { waitUntil: 'networkidle0' });
+      
+      console.log('Checking for privacy popup...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const popupDismissed = await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const confirmButton = buttons.find(btn => 
+          btn.textContent.toUpperCase().includes('CONFIRM')
+        );
+        if (confirmButton) {
+          confirmButton.click();
+          return true;
+        }
+        return false;
+      });
+      
+      if (popupDismissed) {
+        console.log('Privacy popup dismissed');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      
+      console.log(`Looking for delete button for domain: ${domain}`);
+      
+      const deleteButtonFound = await page.evaluate((targetDomain) => {
+        const allButtons = Array.from(document.querySelectorAll('button'));
+        const allLinks = Array.from(document.querySelectorAll('a'));
+        const allElements = [...allButtons, ...allLinks];
+        
+        for (const element of allElements) {
+          const text = element.textContent.toLowerCase().trim();
+          const closestRow = element.closest('tr, div[class*="card"], div[class*="domain"], li');
+          
+          if (closestRow) {
+            const rowText = closestRow.textContent.toLowerCase();
+            
+            if (rowText.includes(targetDomain.toLowerCase())) {
+              if (text.includes('delete') || text.includes('remove')) {
+                console.log('Found delete button for domain:', targetDomain);
+                element.click();
+                return true;
+              }
+            }
+          }
+        }
+        
+        for (const element of allElements) {
+          const text = element.textContent.toLowerCase().trim();
+          if ((text.includes('delete') || text.includes('remove')) && 
+              (text.includes('domain') || text === 'delete' || text === 'remove')) {
+            const ariaLabel = element.getAttribute('aria-label');
+            const title = element.getAttribute('title');
+            
+            if ((ariaLabel && ariaLabel.toLowerCase().includes(targetDomain.toLowerCase())) ||
+                (title && title.toLowerCase().includes(targetDomain.toLowerCase()))) {
+              console.log('Found delete button via aria-label/title for domain:', targetDomain);
+              element.click();
+              return true;
+            }
+          }
+        }
+        
+        return false;
+      }, domain);
+      
+      if (!deleteButtonFound) {
+        throw new Error(`Could not find delete button for domain ${domain}. The domain may not exist or deletion may not be available.`);
+      }
+      
+      console.log('Delete button clicked, waiting for confirmation dialog...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const confirmClicked = await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const confirmButton = buttons.find(btn => {
+          const text = btn.textContent.toLowerCase().trim();
+          return text.includes('confirm') || text.includes('yes') || text.includes('delete');
+        });
+        
+        if (confirmButton) {
+          console.log('Clicking confirmation button');
+          confirmButton.click();
+          return true;
+        }
+        
+        return false;
+      });
+      
+      if (confirmClicked) {
+        console.log('Confirmation button clicked');
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      } else {
+        console.log('No confirmation dialog found, deletion may have been immediate');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      
+      const currentUrl = page.url();
+      console.log('Current URL after deletion:', currentUrl);
+      
+      const pageContent = await page.content();
+      const $ = cheerio.load(pageContent);
+      
+      const errorMessage = $('.alert-danger').text().trim() || $('.error').text().trim();
+      
+      if (errorMessage && !errorMessage.toLowerCase().includes('success')) {
+        throw new Error(`Failed to delete domain: ${errorMessage}`);
+      }
+      
+      const successMessage = $('.alert-success').text().trim();
+      if (successMessage) {
+        console.log('✓ Domain deleted successfully (success message found)');
+        return { success: true, message: successMessage };
+      }
+      
+      const domains = await page.evaluate((targetDomain) => {
+        const bodyText = document.body.textContent;
+        return bodyText.includes(targetDomain);
+      }, domain);
+      
+      if (!domains) {
+        console.log('✓ Domain deleted successfully (domain no longer appears on page)');
+        return { success: true, message: `Domain ${domain} deleted successfully` };
+      }
+      
+      console.log('✓ Domain deletion request sent');
+      return { success: true, message: `Domain ${domain} deletion request sent successfully` };
+      
+    } catch (error) {
+      console.error('Error deleting domain:', error.message);
       throw error;
     } finally {
       if (browser) {

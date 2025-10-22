@@ -174,6 +174,33 @@ app.post('/api/register-subdomain', async (req, res) => {
   }
 });
 
+app.delete('/api/delete-domain', async (req, res) => {
+  try {
+    const accountId = getAccountId(req.body.accountId);
+    const { domain } = req.body;
+    
+    if (!domain) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing required field: domain' 
+      });
+    }
+    
+    console.log(`Deleting domain ${domain} from account ${accountId}...`);
+    const result = await authService.deleteDomain(accountId, domain);
+    
+    res.json({ 
+      success: true, 
+      message: result.message
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
 app.post('/api/create-cname', async (req, res) => {
   try {
     const accountId = getAccountId(req.body.accountId);
@@ -432,6 +459,64 @@ app.post('/register-subdomain', async (req, res) => {
       <body>
         <div class="error">
           <h2>✗ Subdomain Registration Failed</h2>
+          <p>${error.message}</p>
+          <p><a href="/">← Back to Home</a></p>
+        </div>
+      </body>
+      </html>
+    `);
+  }
+});
+
+app.post('/delete-domain', async (req, res) => {
+  try {
+    console.log('Deleting domain...');
+    const { accountId, domain } = req.body;
+    
+    if (!accountId || !domain) {
+      throw new Error('Missing required fields: accountId, domain');
+    }
+    
+    const result = await authService.deleteDomain(accountId, domain);
+    
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Domain Deletion Result</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+          .success { background-color: #d4edda; color: #155724; padding: 20px; border-radius: 4px; border: 1px solid #c3e6cb; }
+          a { color: #007bff; text-decoration: none; }
+          a:hover { text-decoration: underline; }
+        </style>
+      </head>
+      <body>
+        <div class="success">
+          <h2>✓ Domain Deleted!</h2>
+          <p>${result.message}</p>
+          <p>Domain: ${domain}</p>
+          <p><a href="/">← Back to Home</a></p>
+        </div>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Domain Deletion Result</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+          .error { background-color: #f8d7da; color: #721c24; padding: 20px; border-radius: 4px; border: 1px solid #f5c6cb; }
+          a { color: #007bff; text-decoration: none; }
+          a:hover { text-decoration: underline; }
+        </style>
+      </head>
+      <body>
+        <div class="error">
+          <h2>✗ Domain Deletion Failed</h2>
           <p>${error.message}</p>
           <p><a href="/">← Back to Home</a></p>
         </div>
