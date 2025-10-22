@@ -536,16 +536,35 @@ class InfinityFreeAuth {
         console.log('No privacy popup found');
       }
       
-      console.log('Clicking subdomain button...');
-      await page.waitForSelector('button[wire\\:click="selectDomainType(\'subdomain\')"]', { timeout: 10000 });
+      console.log('Looking for subdomain button...');
       
-      await Promise.all([
-        page.click('button[wire\\:click="selectDomainType(\'subdomain\')"]'),
-        page.waitForResponse(response => response.url().includes('/livewire/message/'), { timeout: 15000 }).catch(() => null)
-      ]);
+      const buttonClicked = await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const subdomainButton = buttons.find(btn => {
+          const text = btn.textContent.toLowerCase();
+          return text.includes('subdomain') || text.includes('free domain');
+        });
+        
+        if (subdomainButton) {
+          subdomainButton.click();
+          return true;
+        }
+        
+        const wireButton = document.querySelector('button[wire\\:click*="subdomain"]');
+        if (wireButton) {
+          wireButton.click();
+          return true;
+        }
+        
+        return false;
+      });
       
-      console.log('Waiting for form to load...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      if (!buttonClicked) {
+        throw new Error('Could not find subdomain button on the page');
+      }
+      
+      console.log('Subdomain button clicked, waiting for form...');
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
       console.log('Extracting available extensions...');
       const extensions = await page.evaluate(() => {
