@@ -7,8 +7,8 @@ A professional Node.js application for automating tasks on InfinityFree using co
 - **Modern Web Interface** - Professional, responsive dashboard with tabbed navigation
 - **Cookie-based Authentication** - No email/password required
 - **Verify Authentication** - Test cookie validity
-- **Domain Management** - Register free InfinityFree subdomains and custom subdomains
-- **DNS Management** - Create CNAME, MX, and TXT DNS records
+- **Domain Management** - Register and delete free InfinityFree subdomains and custom subdomains
+- **DNS Management** - Create and delete CNAME, MX, and TXT DNS records
 - **Account & Domain Listing** - View all accounts, domains, and DNS records
 - **Comprehensive API Documentation** - Built-in API reference with examples
 - **Docker Support** - Production-ready containerization
@@ -80,10 +80,18 @@ This application uses authenticated session cookies from your browser to interac
 - Uses standard HTTP requests with your authenticated cookies
 - Fast and lightweight - no browser overhead
 
-**For domain/subdomain registration:**
+**For domain/subdomain registration and deletion:**
 - Uses Puppeteer (headless browser) to interact with Livewire JavaScript forms
-- Automatically fills forms and submits them
+- Automatically fills forms, clicks buttons, and handles confirmations
 - Required because these features use dynamic JavaScript that can't be accessed via simple HTTP requests
+
+**Note on Domain Deletion:**
+- The automation will find and click the delete button on InfinityFree
+- InfinityFree may prevent deletion if:
+  - The domain was recently created (minimum lifetime requirement)
+  - There are active services that need to be removed first
+  - Other validation rules are not met
+- The API will return InfinityFree's error message if deletion is blocked
 
 This hybrid approach:
 - Eliminates the need for email/password login
@@ -96,21 +104,34 @@ This hybrid approach:
 - `GET /` - Modern web interface with dashboard, API docs, and tools
 
 ### JSON API Endpoints
+
+#### Authentication
 - `POST /api/verify-auth` - Verify that your cookies are valid
+
+#### Account & Domain Listing
 - `GET /accounts` - List all hosting accounts
 - `GET /accounts/:accountId/domains` - List domains for an account
 - `GET /accounts/:accountId/domains/:domain/dns` - List DNS records for a domain
+
+#### Domain Registration
 - `GET /api/subdomain-extensions` - Get available subdomain extensions (uses DEFAULT_ACCOUNT_ID)
 - `GET /accounts/:accountId/subdomain-extensions` - Get subdomain extensions for specific account
-- `POST /api/register-domain` - Register a free InfinityFree subdomain (JSON)
-- `POST /api/register-subdomain` - Register a custom subdomain (JSON)
-- `POST /api/create-cname` - Create a CNAME DNS record (JSON)
+- `POST /api/register-domain` - Register a free InfinityFree subdomain
+- `POST /api/register-subdomain` - Register a custom subdomain
+
+#### Domain Deletion
+- `DELETE /api/delete-domain` - Delete a domain from your account
+
+#### DNS Record Management
 - `GET /api/dns-records?domain=example.com` - Get DNS records for a domain (uses DEFAULT_ACCOUNT_ID)
+- `POST /api/create-cname` - Create a CNAME DNS record
+- `DELETE /api/dns-records` - Delete a DNS record
 
 ### Legacy Form Endpoints (HTML responses)
 - `POST /verify-auth` - Verify authentication (returns HTML)
 - `POST /register-domain` - Register domain (returns HTML)
 - `POST /register-subdomain` - Register subdomain (returns HTML)
+- `POST /delete-domain` - Delete domain (returns HTML)
 - `POST /create-cname` - Create CNAME record (returns HTML)
 
 For complete API documentation with request/response examples, visit the **API Documentation** tab in the web interface.

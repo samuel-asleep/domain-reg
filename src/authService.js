@@ -875,9 +875,9 @@ class InfinityFreeAuth {
       
       await page.setCookie(...puppeteerCookies);
       
-      const accountUrl = `${this.baseURL}/accounts/${accountId}`;
-      console.log(`Navigating to: ${accountUrl}`);
-      await page.goto(accountUrl, { waitUntil: 'networkidle0' });
+      const domainUrl = `${this.baseURL}/accounts/${accountId}/domains/${domain}`;
+      console.log(`Navigating directly to domain page: ${domainUrl}`);
+      await page.goto(domainUrl, { waitUntil: 'networkidle0' });
       
       console.log('Checking for privacy popup...');
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -901,46 +901,55 @@ class InfinityFreeAuth {
       
       console.log(`Looking for delete button for domain: ${domain}`);
       
-      const deleteButtonFound = await page.evaluate((targetDomain) => {
+      const deleteButtonFound = await page.evaluate(() => {
         const allButtons = Array.from(document.querySelectorAll('button'));
         const allLinks = Array.from(document.querySelectorAll('a'));
-        const allElements = [...allButtons, ...allLinks];
+        const allForms = Array.from(document.querySelectorAll('form'));
         
-        for (const element of allElements) {
-          const text = element.textContent.toLowerCase().trim();
-          const closestRow = element.closest('tr, div[class*="card"], div[class*="domain"], li');
+        for (const button of allButtons) {
+          const text = button.textContent.toLowerCase().trim();
+          const wireClick = button.getAttribute('wire:click');
+          const onClick = button.getAttribute('onclick');
           
-          if (closestRow) {
-            const rowText = closestRow.textContent.toLowerCase();
-            
-            if (rowText.includes(targetDomain.toLowerCase())) {
-              if (text.includes('delete') || text.includes('remove')) {
-                console.log('Found delete button for domain:', targetDomain);
-                element.click();
-                return true;
-              }
-            }
+          if (text.includes('delete') || text.includes('remove') ||
+              (wireClick && wireClick.toLowerCase().includes('delete')) ||
+              (onClick && onClick.toLowerCase().includes('delete'))) {
+            console.log('Found delete button with text:', text);
+            button.click();
+            return true;
           }
         }
         
-        for (const element of allElements) {
-          const text = element.textContent.toLowerCase().trim();
-          if ((text.includes('delete') || text.includes('remove')) && 
-              (text.includes('domain') || text === 'delete' || text === 'remove')) {
-            const ariaLabel = element.getAttribute('aria-label');
-            const title = element.getAttribute('title');
-            
-            if ((ariaLabel && ariaLabel.toLowerCase().includes(targetDomain.toLowerCase())) ||
-                (title && title.toLowerCase().includes(targetDomain.toLowerCase()))) {
-              console.log('Found delete button via aria-label/title for domain:', targetDomain);
-              element.click();
+        for (const link of allLinks) {
+          const text = link.textContent.toLowerCase().trim();
+          const href = link.getAttribute('href') || '';
+          
+          if ((text.includes('delete') || text.includes('remove')) ||
+              href.includes('delete') || href.includes('remove')) {
+            console.log('Found delete link with text:', text, 'href:', href);
+            link.click();
+            return true;
+          }
+        }
+        
+        for (const form of allForms) {
+          const action = form.getAttribute('action') || '';
+          const method = form.getAttribute('method') || '';
+          
+          if (action.includes('delete') || 
+              (method.toLowerCase() === 'delete') ||
+              (form.querySelector('input[name="_method"][value="DELETE"]'))) {
+            const submitButton = form.querySelector('button[type="submit"]');
+            if (submitButton) {
+              console.log('Found delete form, submitting...');
+              submitButton.click();
               return true;
             }
           }
         }
         
         return false;
-      }, domain);
+      });
       
       if (!deleteButtonFound) {
         throw new Error(`Could not find delete button for domain ${domain}. The domain may not exist or deletion may not be available.`);
