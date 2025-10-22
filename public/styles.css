@@ -230,6 +230,11 @@ button.secondary:hover {
   color: #00aa00;
 }
 
+.api-method.delete {
+  background: #ffe6e6;
+  color: #cc0000;
+}
+
 .api-path {
   font-family: 'Courier New', monospace;
   color: #666;

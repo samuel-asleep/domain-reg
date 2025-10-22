@@ -44,6 +44,25 @@
       <div id="api-docs" class="tab-content">
         <h2 style="margin-bottom: 30px;">API Reference</h2>
         
+        <h3 style="margin-top: 30px; margin-bottom: 15px; color: #667eea;">Authentication</h3>
+        
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method post">POST</span>
+            <span class="api-path">/api/verify-auth</span>
+          </div>
+          <p class="api-description">Verify that your InfinityFree authentication cookies are valid and working.</p>
+          <div class="api-example">
+            <h4>Response Example:</h4>
+            <pre>{
+  "success": true,
+  "message": "Authentication successful"
+}</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top: 30px; margin-bottom: 15px; color: #667eea;">Account & Domain Listing</h3>
+        
         <div class="api-endpoint">
           <div>
             <span class="api-method get">GET</span>
@@ -119,21 +138,137 @@
         <div class="api-endpoint">
           <div>
             <span class="api-method get">GET</span>
-            <span class="api-path">/accounts/:accountId/subdomain-extensions</span>
+            <span class="api-path">/api/subdomain-extensions</span>
           </div>
-          <p class="api-description">Get available free subdomain extensions for an account (e.g., .infinityfreeapp.com, .rf.gd).</p>
+          <p class="api-description">Get available free subdomain extensions (uses DEFAULT_ACCOUNT_ID).</p>
           <div class="api-example">
             <h4>Response Example:</h4>
             <pre>{
   "success": true,
   "extensions": [
+    { "value": "infinityfreeapp.com", "label": "infinityfreeapp.com" },
+    { "value": "rf.gd", "label": "rf.gd" },
+    { "value": "42web.io", "label": "42web.io" }
+  ]
+}</pre>
+          </div>
+        </div>
+
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method get">GET</span>
+            <span class="api-path">/accounts/:accountId/subdomain-extensions</span>
+          </div>
+          <p class="api-description">Get available free subdomain extensions for a specific account.</p>
+          <div class="api-example">
+            <h4>Example Request:</h4>
+            <pre>GET /accounts/if0_12345678/subdomain-extensions</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top: 30px; margin-bottom: 15px; color: #667eea;">Domain Registration</h3>
+
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method post">POST</span>
+            <span class="api-path">/api/register-domain</span>
+          </div>
+          <p class="api-description">Register a new free InfinityFree subdomain (JSON API).</p>
+          <div class="api-example">
+            <h4>Request Body (JSON):</h4>
+            <pre>{
+  "accountId": "if0_12345678",
+  "subdomain": "mysite",
+  "domainExtension": "infinityfreeapp.com"
+}</pre>
+          </div>
+          <div class="api-example">
+            <h4>Response Example:</h4>
+            <pre>{
+  "success": true,
+  "message": "Subdomain mysite.infinityfreeapp.com registered successfully",
+  "domain": "mysite.infinityfreeapp.com"
+}</pre>
+          </div>
+        </div>
+
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method post">POST</span>
+            <span class="api-path">/api/register-subdomain</span>
+          </div>
+          <p class="api-description">Register a subdomain under your custom domain (JSON API).</p>
+          <div class="api-example">
+            <h4>Request Body (JSON):</h4>
+            <pre>{
+  "accountId": "if0_12345678",
+  "parentDomain": "example.com",
+  "subdomain": "blog"
+}</pre>
+          </div>
+          <div class="api-example">
+            <h4>Response Example:</h4>
+            <pre>{
+  "success": true,
+  "message": "Subdomain blog.example.com registered successfully",
+  "domain": "blog.example.com"
+}</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top: 30px; margin-bottom: 15px; color: #667eea;">Domain Deletion</h3>
+
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method delete">DELETE</span>
+            <span class="api-path">/api/delete-domain</span>
+          </div>
+          <p class="api-description">Delete a domain from your InfinityFree account. Note: InfinityFree may prevent deletion if the domain was recently created or has active services.</p>
+          <div class="api-example">
+            <h4>Request Body (JSON):</h4>
+            <pre>{
+  "accountId": "if0_12345678",
+  "domain": "mysite.infinityfreeapp.com"
+}</pre>
+          </div>
+          <div class="api-example">
+            <h4>Response Example (Success):</h4>
+            <pre>{
+  "success": true,
+  "message": "Domain mysite.infinityfreeapp.com deleted successfully"
+}</pre>
+          </div>
+          <div class="api-example">
+            <h4>Response Example (InfinityFree Error):</h4>
+            <pre>{
+  "success": false,
+  "message": "Failed to delete domain: Multiple errors occurred..."
+}</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top: 30px; margin-bottom: 15px; color: #667eea;">DNS Record Management</h3>
+
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method get">GET</span>
+            <span class="api-path">/api/dns-records</span>
+          </div>
+          <p class="api-description">Get DNS records for a domain (uses DEFAULT_ACCOUNT_ID).</p>
+          <div class="api-example">
+            <h4>Query Parameters:</h4>
+            <pre>?domain=example.com&accountId=if0_12345678 (optional)</pre>
+          </div>
+          <div class="api-example">
+            <h4>Response Example:</h4>
+            <pre>{
+  "success": true,
+  "records": [
     {
-      "value": "infinityfreeapp.com",
-      "label": "infinityfreeapp.com"
-    },
-    {
-      "value": "rf.gd",
-      "label": "rf.gd"
+      "domain": "example.com",
+      "type": "A",
+      "target": "192.0.2.1",
+      "deleteId": "abc123"
     }
   ]
 }</pre>
@@ -143,52 +278,11 @@
         <div class="api-endpoint">
           <div>
             <span class="api-method post">POST</span>
-            <span class="api-path">/register-domain</span>
+            <span class="api-path">/api/create-cname</span>
           </div>
-          <p class="api-description">Register a new free InfinityFree subdomain.</p>
+          <p class="api-description">Create a CNAME DNS record for a domain (JSON API).</p>
           <div class="api-example">
-            <h4>Request Body (application/x-www-form-urlencoded or application/json):</h4>
-            <pre>{
-  "accountId": "if0_12345678",
-  "subdomain": "mysite",
-  "domainExtension": "infinityfreeapp.com"
-}</pre>
-          </div>
-          <div class="api-example">
-            <h4>Response:</h4>
-            <pre>Returns HTML page with success or error message</pre>
-          </div>
-        </div>
-
-        <div class="api-endpoint">
-          <div>
-            <span class="api-method post">POST</span>
-            <span class="api-path">/register-subdomain</span>
-          </div>
-          <p class="api-description">Register a subdomain under your custom domain that's already added to InfinityFree.</p>
-          <div class="api-example">
-            <h4>Request Body:</h4>
-            <pre>{
-  "accountId": "if0_12345678",
-  "parentDomain": "example.com",
-  "subdomain": "blog"
-}</pre>
-          </div>
-          <div class="api-example">
-            <h4>Response:</h4>
-            <pre>Returns HTML page with success or error message
-Creates: blog.example.com</pre>
-          </div>
-        </div>
-
-        <div class="api-endpoint">
-          <div>
-            <span class="api-method post">POST</span>
-            <span class="api-path">/create-cname</span>
-          </div>
-          <p class="api-description">Create a CNAME DNS record for a domain.</p>
-          <div class="api-example">
-            <h4>Request Body:</h4>
+            <h4>Request Body (JSON):</h4>
             <pre>{
   "accountId": "if0_12345678",
   "domain": "example.com",
@@ -197,21 +291,76 @@ Creates: blog.example.com</pre>
 }</pre>
           </div>
           <div class="api-example">
-            <h4>Response:</h4>
-            <pre>Returns HTML page with success or error message</pre>
+            <h4>Response Example:</h4>
+            <pre>{
+  "success": true,
+  "message": "CNAME record www created successfully"
+}</pre>
           </div>
         </div>
+
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method delete">DELETE</span>
+            <span class="api-path">/api/dns-records</span>
+          </div>
+          <p class="api-description">Delete a DNS record using the deleteId from the GET request.</p>
+          <div class="api-example">
+            <h4>Request Body (JSON):</h4>
+            <pre>{
+  "accountId": "if0_12345678",
+  "deleteId": "abc123"
+}</pre>
+          </div>
+          <div class="api-example">
+            <h4>Response Example:</h4>
+            <pre>{
+  "success": true,
+  "message": "DNS record deleted successfully"
+}</pre>
+          </div>
+        </div>
+
+        <h3 style="margin-top: 30px; margin-bottom: 15px; color: #667eea;">Legacy Form Endpoints (HTML Responses)</h3>
 
         <div class="api-endpoint">
           <div>
             <span class="api-method post">POST</span>
             <span class="api-path">/verify-auth</span>
           </div>
-          <p class="api-description">Verify that your InfinityFree authentication cookies are valid and working.</p>
-          <div class="api-example">
-            <h4>Response:</h4>
-            <pre>Returns HTML page with authentication status</pre>
+          <p class="api-description">Verify authentication (returns HTML page).</p>
+        </div>
+
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method post">POST</span>
+            <span class="api-path">/register-domain</span>
           </div>
+          <p class="api-description">Register domain (returns HTML page).</p>
+        </div>
+
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method post">POST</span>
+            <span class="api-path">/register-subdomain</span>
+          </div>
+          <p class="api-description">Register subdomain (returns HTML page).</p>
+        </div>
+
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method post">POST</span>
+            <span class="api-path">/delete-domain</span>
+          </div>
+          <p class="api-description">Delete domain (returns HTML page).</p>
+        </div>
+
+        <div class="api-endpoint">
+          <div>
+            <span class="api-method post">POST</span>
+            <span class="api-path">/create-cname</span>
+          </div>
+          <p class="api-description">Create CNAME record (returns HTML page).</p>
         </div>
       </div>
 

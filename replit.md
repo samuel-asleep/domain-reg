@@ -9,7 +9,9 @@ InfinityFree Automation is a Node.js application that automates tasks on the Inf
 - **Added**: `deleteDomain()` method in authService.js for automated domain removal via Puppeteer
 - **Added**: API endpoints `DELETE /api/delete-domain` and `POST /delete-domain` for domain deletion
 - **Improved**: All Puppeteer automation now uses consistent, non-deprecated methods
-- **Result**: No more deprecation warnings; users can now delete domains programmatically
+- **Updated**: Frontend API documentation completely reorganized with sections for Authentication, Account & Domain Listing, Domain Registration, Domain Deletion, and DNS Record Management
+- **Added**: CSS styling for DELETE method badges in red (matching REST conventions)
+- **Result**: No more deprecation warnings; users can now delete domains programmatically; comprehensive API documentation in frontend
 
 ## October 21, 2025 - Made App Portable for Render and Koyeb Deployment
 - **Updated**: Dockerfile now installs Chromium via Alpine package manager instead of relying on Nix
