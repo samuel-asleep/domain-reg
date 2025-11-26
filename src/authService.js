@@ -692,19 +692,13 @@ class InfinityFreeAuth {
       const currentUrl = page.url();
       console.log('Current URL after submission:', currentUrl);
       
-      const pageContent = await page.content();
-      const $ = cheerio.load(pageContent);
-      
-      const errorMessage = $('.alert-danger').text().trim() || $('.error').text().trim();
-      
-      if (errorMessage) {
-        throw new Error(`Failed to register domain: ${errorMessage}`);
-      }
-      
       if (currentUrl.includes('/domains/') && !currentUrl.includes('/create')) {
         console.log('✓ Free subdomain registered successfully (redirected to domain page)');
         return { success: true, message: `Subdomain ${subdomain}.${domainExtension} registered successfully` };
       }
+      
+      const pageContent = await page.content();
+      const $ = cheerio.load(pageContent);
       
       const successMessage = $('.alert-success').text().trim();
       if (successMessage) {
@@ -715,6 +709,12 @@ class InfinityFreeAuth {
       if (livewireResponse && (livewireResponse.status() === 200 || livewireResponse.status() === 204)) {
         console.log('✓ Free subdomain registered successfully (Livewire returned success)');
         return { success: true, message: `Subdomain ${subdomain}.${domainExtension} registered successfully` };
+      }
+      
+      const errorMessage = $('.alert-danger').text().trim() || $('.error').text().trim();
+      
+      if (errorMessage) {
+        throw new Error(`Failed to register domain: ${errorMessage}`);
       }
       
       throw new Error('Domain registration failed - unexpected response');
@@ -817,19 +817,13 @@ class InfinityFreeAuth {
       const currentUrl = page.url();
       console.log('Current URL after submission:', currentUrl);
       
-      const pageContent = await page.content();
-      const $ = cheerio.load(pageContent);
-      
-      const errorMessage = $('.alert-danger').text().trim() || $('.error').text().trim();
-      
-      if (errorMessage) {
-        throw new Error(`Failed to register subdomain: ${errorMessage}`);
-      }
-      
       if (currentUrl.includes('/domains/') && !currentUrl.includes('/create')) {
         console.log('✓ Subdomain registered successfully (redirected to domain page)');
         return { success: true, message: `Subdomain ${subdomain}.${parentDomain} registered successfully` };
       }
+      
+      const pageContent = await page.content();
+      const $ = cheerio.load(pageContent);
       
       const successMessage = $('.alert-success').text().trim();
       if (successMessage) {
@@ -840,6 +834,12 @@ class InfinityFreeAuth {
       if (livewireResponse && (livewireResponse.status() === 200 || livewireResponse.status() === 204)) {
         console.log('✓ Subdomain registered successfully (Livewire returned success)');
         return { success: true, message: `Subdomain ${subdomain}.${parentDomain} registered successfully` };
+      }
+      
+      const errorMessage = $('.alert-danger').text().trim() || $('.error').text().trim();
+      
+      if (errorMessage) {
+        throw new Error(`Failed to register subdomain: ${errorMessage}`);
       }
       
       throw new Error('Subdomain registration failed - unexpected response');
