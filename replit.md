@@ -4,6 +4,23 @@ InfinityFree Automation is a Node.js application that automates tasks on the Inf
 
 # Recent Changes
 
+## November 26, 2025 - Auto Chromium Detection & Auto Account Setup
+- **Added**: New `src/chromiumPath.js` utility for intelligent browser detection across all platforms
+- **Enhanced**: Chromium path auto-detection now supports:
+  - Replit/Nix environments (searches Nix store)
+  - Docker containers (standard Linux paths)
+  - Windows (Chrome, Chromium, and Microsoft Edge at common install locations)
+  - macOS (Applications folder paths)
+  - Custom paths via `CHROMIUM_PATH` or `PUPPETEER_EXECUTABLE_PATH` environment variables
+- **Added**: Auto-fetch accounts on server startup using available cookies
+- **Added**: Auto-set default account to first available account if `DEFAULT_ACCOUNT_ID` not specified
+- **Added**: Account verification - validates that `DEFAULT_ACCOUNT_ID` exists in available accounts
+- **Added**: New API endpoints:
+  - `GET /api/status` - Returns current default account, available accounts, and auth status
+  - `POST /api/set-default-account` - Allows changing the default account at runtime
+- **Improved**: `availableAccounts` list is now always populated on startup for status reporting
+- **Result**: Zero-configuration deployment - app automatically detects browser and account settings
+
 ## October 22, 2025 - Fixed Puppeteer Deprecation & Added Domain Deletion
 - **Fixed**: Replaced deprecated `page.waitForTimeout()` with modern `setTimeout` promise pattern
 - **Added**: `deleteDomain()` method in authService.js for automated domain removal via Puppeteer
