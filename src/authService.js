@@ -685,14 +685,45 @@ class InfinityFreeAuth {
       }
       
       console.log('Clicking subdomain button...');
-      await page.waitForSelector('button[wire\\:click="selectDomainType(\'subdomain\')"]', { timeout: 10000 });
+      await page.waitForSelector('button[wire\\:click="selectDomainType(\'subdomain\')"]', { timeout: 15000 });
       await page.click('button[wire\\:click="selectDomainType(\'subdomain\')"]');
       
       console.log('Waiting for form to load...');
-      await page.waitForSelector('input[placeholder="your-name"]', { timeout: 10000 });
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      let inputSelector = null;
+      const possibleSelectors = [
+        'input[placeholder="your-name"]',
+        'input[type="text"][placeholder]',
+        'input.form-control[type="text"]',
+        'form input[type="text"]:first-of-type'
+      ];
+      
+      for (const selector of possibleSelectors) {
+        try {
+          await page.waitForSelector(selector, { timeout: 5000 });
+          inputSelector = selector;
+          console.log(`Found input with selector: ${selector}`);
+          break;
+        } catch (e) {
+          continue;
+        }
+      }
+      
+      if (!inputSelector) {
+        const inputFound = await page.evaluate(() => {
+          const inputs = document.querySelectorAll('input[type="text"]');
+          return inputs.length > 0;
+        });
+        if (inputFound) {
+          inputSelector = 'input[type="text"]';
+        } else {
+          throw new Error('Could not find subdomain input field');
+        }
+      }
       
       console.log('Filling in subdomain name...');
-      await page.type('input[placeholder="your-name"]', subdomain);
+      await page.type(inputSelector, subdomain);
       
       console.log(`Selecting domain extension: ${domainExtension}`);
       await page.select('select', domainExtension);
