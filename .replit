@@ -14,6 +14,10 @@ author = "agent"
 task = "workflow.run"
 args = "Server"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "TelegramBot"
+
 [[workflows.workflow]]
 name = "Server"
 author = "agent"
@@ -25,6 +29,18 @@ outputType = "webview"
 task = "shell.exec"
 args = "node app.js"
 waitForPort = 5000
+
+[[workflows.workflow]]
+name = "TelegramBot"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd telegram-bot && node src/index.js"
+waitForPort = 3000
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [nix]
 channel = "stable-25_05"
@@ -57,3 +73,13 @@ externalPort = 3000
 [[ports]]
 localPort = 43227
 externalPort = 3003
+
+[[ports]]
+localPort = 3000
+externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+DOMAIN_REG_API = "http://localhost:5000"
+BOT_PORT = "3000"
