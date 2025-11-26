@@ -499,14 +499,17 @@ class InfinityFreeAuth {
       browser = await puppeteer.launch({
         executablePath: getChromiumPath(),
         headless: true,
+        protocolTimeout: 120000,
         args: [
           '--no-sandbox', 
           '--disable-setuid-sandbox', 
           '--disable-dev-shm-usage', 
           '--disable-gpu',
-          '--disable-web-security',
-          '--disable-features=VizDisplayCompositor',
-          '--single-process'
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-background-networking',
+          '--disable-extensions'
         ]
       });
       
@@ -625,14 +628,17 @@ class InfinityFreeAuth {
       browser = await puppeteer.launch({
         executablePath: getChromiumPath(),
         headless: true,
+        protocolTimeout: 120000,
         args: [
           '--no-sandbox', 
           '--disable-setuid-sandbox', 
           '--disable-dev-shm-usage', 
           '--disable-gpu',
-          '--disable-web-security',
-          '--disable-features=VizDisplayCompositor',
-          '--single-process'
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-background-networking',
+          '--disable-extensions'
         ]
       });
       
@@ -763,14 +769,17 @@ class InfinityFreeAuth {
       browser = await puppeteer.launch({
         executablePath: getChromiumPath(),
         headless: true,
+        protocolTimeout: 120000,
         args: [
           '--no-sandbox', 
           '--disable-setuid-sandbox', 
           '--disable-dev-shm-usage', 
           '--disable-gpu',
-          '--disable-web-security',
-          '--disable-features=VizDisplayCompositor',
-          '--single-process'
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-background-networking',
+          '--disable-extensions'
         ]
       });
       
@@ -899,14 +908,17 @@ class InfinityFreeAuth {
       browser = await puppeteer.launch({
         executablePath: getChromiumPath(),
         headless: true,
+        protocolTimeout: 120000,
         args: [
           '--no-sandbox', 
           '--disable-setuid-sandbox', 
           '--disable-dev-shm-usage', 
           '--disable-gpu',
-          '--disable-web-security',
-          '--disable-features=VizDisplayCompositor',
-          '--single-process'
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-background-networking',
+          '--disable-extensions'
         ]
       });
       

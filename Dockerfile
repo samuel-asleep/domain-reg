@@ -1,4 +1,4 @@
-FROM node:20-alpine AS base
+FROM node:20-alpine3.19 AS base
 
 WORKDIR /app
 
@@ -19,7 +19,7 @@ COPY package*.json ./
 
 RUN npm ci --only=production && npm cache clean --force
 
-FROM node:20-alpine AS production
+FROM node:20-alpine3.19 AS production
 
 WORKDIR /app
 
@@ -33,7 +33,9 @@ RUN apk update && apk add --no-cache \
     font-noto-emoji
 
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+    adduser -S nodejs -u 1001 && \
+    mkdir -p /home/nodejs/Downloads && \
+    chown -R nodejs:nodejs /home/nodejs
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
