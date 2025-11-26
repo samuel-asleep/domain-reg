@@ -2,6 +2,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { wrapper } = require('axios-cookiejar-support');
 const { CookieJar } = require('tough-cookie');
+const { getChromiumPath } = require('./chromiumPath');
 
 class InfinityFreeAuth {
   constructor() {
@@ -496,7 +497,7 @@ class InfinityFreeAuth {
       console.log('Fetching available subdomain extensions...');
       
       browser = await puppeteer.launch({
-        executablePath: process.env.CHROMIUM_PATH || process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
+        executablePath: getChromiumPath(),
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
       });
@@ -611,7 +612,7 @@ class InfinityFreeAuth {
       console.log(`Registering free subdomain: ${subdomain}.${domainExtension}`);
       
       browser = await puppeteer.launch({
-        executablePath: process.env.CHROMIUM_PATH || process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
+        executablePath: getChromiumPath(),
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
       });
@@ -738,7 +739,7 @@ class InfinityFreeAuth {
       console.log(`Registering subdomain: ${subdomain}.${parentDomain}`);
       
       browser = await puppeteer.launch({
-        executablePath: process.env.CHROMIUM_PATH || process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
+        executablePath: getChromiumPath(),
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
       });
@@ -863,7 +864,7 @@ class InfinityFreeAuth {
       console.log(`Deleting domain: ${domain} from account ${accountId}`);
       
       browser = await puppeteer.launch({
-        executablePath: process.env.CHROMIUM_PATH || process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
+        executablePath: getChromiumPath(),
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
       });

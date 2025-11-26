@@ -13,9 +13,58 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 const authService = new InfinityFreeAuth();
-const DEFAULT_ACCOUNT_ID = process.env.DEFAULT_ACCOUNT_ID;
+let DEFAULT_ACCOUNT_ID = process.env.DEFAULT_ACCOUNT_ID;
+let availableAccounts = [];
 
 const deleteUrlMap = new Map();
+
+async function initializeDefaultAccount() {
+  try {
+    console.log('Initializing authentication and fetching accounts...');
+    await authService.initializeFromEnv();
+    await authService.verifyAuthentication();
+    
+    const accounts = await authService.getAccounts();
+    availableAccounts = accounts;
+    
+    if (accounts.length > 0) {
+      console.log(`Found ${accounts.length} account(s)`);
+      
+      if (accounts.length > 1) {
+        console.log('Available accounts:');
+        accounts.forEach((acc, i) => {
+          console.log(`  ${i + 1}. ${acc.id} - ${acc.name}`);
+        });
+      }
+      
+      if (DEFAULT_ACCOUNT_ID) {
+        const existingAccount = accounts.find(acc => acc.id === DEFAULT_ACCOUNT_ID);
+        if (existingAccount) {
+          console.log(`Default account from environment verified: ${DEFAULT_ACCOUNT_ID} (${existingAccount.name})`);
+        } else {
+          console.log(`Warning: DEFAULT_ACCOUNT_ID ${DEFAULT_ACCOUNT_ID} not found in available accounts`);
+          DEFAULT_ACCOUNT_ID = accounts[0].id;
+          console.log(`Falling back to first available account: ${DEFAULT_ACCOUNT_ID}`);
+        }
+      } else {
+        DEFAULT_ACCOUNT_ID = accounts[0].id;
+        console.log(`Auto-set default account: ${DEFAULT_ACCOUNT_ID} (${accounts[0].name})`);
+      }
+    } else {
+      console.log('No accounts found.');
+      if (!DEFAULT_ACCOUNT_ID) {
+        console.log('DEFAULT_ACCOUNT_ID not set and no accounts available.');
+      }
+    }
+  } catch (error) {
+    console.log(`Could not fetch accounts: ${error.message}`);
+    if (DEFAULT_ACCOUNT_ID) {
+      console.log(`Using DEFAULT_ACCOUNT_ID from environment: ${DEFAULT_ACCOUNT_ID}`);
+    } else {
+      console.log('You may need to set DEFAULT_ACCOUNT_ID manually or provide valid INFINITYFREE_COOKIES');
+    }
+  }
+}
 const crypto = require('crypto');
 
 setInterval(() => {
@@ -43,6 +92,51 @@ function createOpaqueId(deleteUrl, domain) {
   deleteUrlMap.set(hash, { deleteUrl, domain, createdAt: Date.now() });
   return hash;
 }
+
+app.get('/api/status', async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      defaultAccountId: DEFAULT_ACCOUNT_ID || null,
+      availableAccounts: availableAccounts,
+      isAuthenticated: authService.isAuthenticated
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/set-default-account', async (req, res) => {
+  try {
+    const { accountId } = req.body;
+    
+    if (!accountId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing required field: accountId' 
+      });
+    }
+    
+    const accountExists = availableAccounts.find(acc => acc.id === accountId);
+    if (!accountExists && availableAccounts.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid account ID. Use /api/status to see available accounts.' 
+      });
+    }
+    
+    DEFAULT_ACCOUNT_ID = accountId;
+    console.log(`Default account changed to: ${accountId}`);
+    
+    res.json({ 
+      success: true, 
+      message: `Default account set to ${accountId}`,
+      defaultAccountId: DEFAULT_ACCOUNT_ID
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 app.post('/api/verify-auth', async (req, res) => {
   try {
@@ -706,11 +800,14 @@ app.get('/test-forms', async (req, res) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
   console.log('InfinityFree Automation App Ready');
   console.log('Using cookie-based authentication');
+  
+  await initializeDefaultAccount();
+  
   if (DEFAULT_ACCOUNT_ID) {
-    console.log(`Default Account ID configured: ${DEFAULT_ACCOUNT_ID}`);
+    console.log(`Default Account ID: ${DEFAULT_ACCOUNT_ID}`);
   }
 });
