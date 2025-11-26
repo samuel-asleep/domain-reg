@@ -499,10 +499,20 @@ class InfinityFreeAuth {
       browser = await puppeteer.launch({
         executablePath: getChromiumPath(),
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+        args: [
+          '--no-sandbox', 
+          '--disable-setuid-sandbox', 
+          '--disable-dev-shm-usage', 
+          '--disable-gpu',
+          '--disable-web-security',
+          '--disable-features=VizDisplayCompositor',
+          '--single-process'
+        ]
       });
       
       const page = await browser.newPage();
+      page.setDefaultNavigationTimeout(60000);
+      page.setDefaultTimeout(60000);
       
       const cookies = await this.jar.getCookies(this.baseURL);
       const puppeteerCookies = cookies.map(cookie => ({
@@ -519,7 +529,8 @@ class InfinityFreeAuth {
       
       const createUrl = `${this.baseURL}/accounts/${accountId}/domains/create`;
       console.log(`Navigating to: ${createUrl}`);
-      await page.goto(createUrl, { waitUntil: 'networkidle0' });
+      await page.goto(createUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await page.waitForSelector('body', { timeout: 10000 }).catch(() => {});
       
       console.log('Checking for privacy popup...');
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -614,10 +625,20 @@ class InfinityFreeAuth {
       browser = await puppeteer.launch({
         executablePath: getChromiumPath(),
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+        args: [
+          '--no-sandbox', 
+          '--disable-setuid-sandbox', 
+          '--disable-dev-shm-usage', 
+          '--disable-gpu',
+          '--disable-web-security',
+          '--disable-features=VizDisplayCompositor',
+          '--single-process'
+        ]
       });
       
       const page = await browser.newPage();
+      page.setDefaultNavigationTimeout(60000);
+      page.setDefaultTimeout(60000);
       
       const cookies = await this.jar.getCookies(this.baseURL);
       const puppeteerCookies = cookies.map(cookie => ({
@@ -634,7 +655,8 @@ class InfinityFreeAuth {
       
       const createUrl = `${this.baseURL}/accounts/${accountId}/domains/create`;
       console.log(`Navigating to: ${createUrl}`);
-      await page.goto(createUrl, { waitUntil: 'networkidle0' });
+      await page.goto(createUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await page.waitForSelector('body', { timeout: 10000 }).catch(() => {});
       
       console.log('Checking for privacy popup...');
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -684,7 +706,7 @@ class InfinityFreeAuth {
             return true;
           }
           return response.url().includes('/domains');
-        }, { timeout: 30000 })
+        }, { timeout: 60000 })
       ]);
       
       await new Promise(resolve => setTimeout(resolve, 3000));
@@ -741,10 +763,20 @@ class InfinityFreeAuth {
       browser = await puppeteer.launch({
         executablePath: getChromiumPath(),
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+        args: [
+          '--no-sandbox', 
+          '--disable-setuid-sandbox', 
+          '--disable-dev-shm-usage', 
+          '--disable-gpu',
+          '--disable-web-security',
+          '--disable-features=VizDisplayCompositor',
+          '--single-process'
+        ]
       });
       
       const page = await browser.newPage();
+      page.setDefaultNavigationTimeout(60000);
+      page.setDefaultTimeout(60000);
       
       const cookies = await this.jar.getCookies(this.baseURL);
       const puppeteerCookies = cookies.map(cookie => ({
@@ -761,7 +793,8 @@ class InfinityFreeAuth {
       
       const createUrl = `${this.baseURL}/accounts/${accountId}/domains/create`;
       console.log(`Navigating to: ${createUrl}`);
-      await page.goto(createUrl, { waitUntil: 'networkidle0' });
+      await page.goto(createUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await page.waitForSelector('body', { timeout: 10000 }).catch(() => {});
       
       console.log('Checking for privacy popup...');
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -809,7 +842,7 @@ class InfinityFreeAuth {
             return true;
           }
           return response.url().includes('/domains');
-        }, { timeout: 30000 })
+        }, { timeout: 60000 })
       ]);
       
       await new Promise(resolve => setTimeout(resolve, 3000));
@@ -866,10 +899,20 @@ class InfinityFreeAuth {
       browser = await puppeteer.launch({
         executablePath: getChromiumPath(),
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+        args: [
+          '--no-sandbox', 
+          '--disable-setuid-sandbox', 
+          '--disable-dev-shm-usage', 
+          '--disable-gpu',
+          '--disable-web-security',
+          '--disable-features=VizDisplayCompositor',
+          '--single-process'
+        ]
       });
       
       const page = await browser.newPage();
+      page.setDefaultNavigationTimeout(60000);
+      page.setDefaultTimeout(60000);
       
       const cookies = await this.jar.getCookies(this.baseURL);
       const puppeteerCookies = cookies.map(cookie => ({
@@ -886,7 +929,8 @@ class InfinityFreeAuth {
       
       const domainUrl = `${this.baseURL}/accounts/${accountId}/domains/${domain}`;
       console.log(`Navigating directly to domain page: ${domainUrl}`);
-      await page.goto(domainUrl, { waitUntil: 'networkidle0' });
+      await page.goto(domainUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await page.waitForSelector('body', { timeout: 10000 }).catch(() => {});
       
       console.log('Checking for privacy popup...');
       await new Promise(resolve => setTimeout(resolve, 2000));
